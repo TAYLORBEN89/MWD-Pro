@@ -52,7 +52,7 @@
     "vite": "^8.0.8"
   },
   "overrides": {
-    "protobufjs": "^7.5.5",
+    "protobufjs": "^7.6.3",
     "@xmldom/xmldom": "0.8.13",
     "uuid": "^14.0.0",
     "postcss": "^8.5.10",
