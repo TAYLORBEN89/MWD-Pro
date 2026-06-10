@@ -1,0 +1,33 @@
+{
+  "appId": "com.mwdpro.app",
+  "appName": "MWD Pro",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "compessential.com",
+      "*.compessential.com",
+      "*.firebaseapp.com",
+      "*.googleapis.com",
+      "*.run.app",
+      "*.stripe.com",
+      "checkout.stripe.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0a0a0a",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "iosSpinnerStyle": "small"
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

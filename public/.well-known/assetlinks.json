@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mwdpro.app",
+      "sha256_cert_fingerprints": [
+        "D7:07:5F:56:7F:8F:AC:91:42:A4:39:68:7C:A1:58:A1:10:6A:B5:EF:EF:62:8C:B4:43:48:CE:66:0E:AD:49:01"
+      ]
+    }
+  }
+]

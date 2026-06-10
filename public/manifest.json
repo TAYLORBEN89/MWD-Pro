@@ -1,0 +1,42 @@
+{
+  "short_name": "MWD Pro",
+  "name": "MWD Pro: Master Drilling Dynamics",
+  "description": "Professional training and certification for Measurement While Drilling (MWD) field engineers.",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/mwd/192/192",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://picsum.photos/seed/mwd/512/512",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://picsum.photos/seed/mwd-screen1/1080/1920",
+      "type": "image/png",
+      "sizes": "1080x1920",
+      "form_factor": "narrow",
+      "label": "Curriculum Overview"
+    },
+    {
+      "src": "https://picsum.photos/seed/mwd-screen2/1920/1080",
+      "type": "image/png",
+      "sizes": "1920x1080",
+      "form_factor": "wide",
+      "label": "Interactive Training"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a0a0a",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "categories": ["education", "productivity"]
+}

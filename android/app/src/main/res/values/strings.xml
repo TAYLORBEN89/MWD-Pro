@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MWD Pro</string>
+    <string name="title_activity_main">MWD Pro</string>
+    <string name="package_name">com.mwdpro.app</string>
+    <string name="custom_url_scheme">com.mwdpro.app</string>
+</resources>
