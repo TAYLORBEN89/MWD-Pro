@@ -38,21 +38,21 @@ export const FormationLog: React.FC = () => {
   }, [isDrilling, depth, gammaRay]);
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-6">
+    <div className="instrument space-y-5">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-xl">
+          <div className="instrument-icon">
             <Layers className="text-emerald-500" size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white font-display">Real-Time Formation Evaluation</h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Gamma Ray & Lithology Log</p>
+            <h3 className="instrument-title">Real-Time Formation Evaluation</h3>
+            <p className="instrument-subtitle">Gamma Ray & Lithology Log</p>
           </div>
         </div>
         <button 
           onClick={() => setIsDrilling(!isDrilling)}
           className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            isDrilling ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-900'
+            isDrilling ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-100'
           }`}
         >
           {isDrilling ? 'Stop Drilling' : 'Start Drilling'}
@@ -61,8 +61,8 @@ export const FormationLog: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[400px]">
         {/* Log Track */}
-        <div className="md:col-span-3 bg-black/40 rounded-2xl border border-zinc-800 p-4 relative overflow-hidden flex flex-col">
-          <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2 mb-2">
+        <div className="md:col-span-3 instrument-panel p-4 relative overflow-hidden flex flex-col">
+          <div className="flex justify-between instrument-metric-label border-b border-zinc-800 pb-2 mb-2">
             <span>Gamma Ray (API)</span>
             <div className="flex gap-10">
               <span>0</span>
@@ -103,31 +103,31 @@ export const FormationLog: React.FC = () => {
 
           {/* Current Depth Indicator */}
           <div className="absolute bottom-4 left-4 bg-zinc-900/90 border border-zinc-700 px-3 py-1 rounded-lg">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mr-2">Depth:</span>
+            <span className="instrument-metric-label mr-2">Depth:</span>
             <span className="text-xs font-mono text-white">{depth.toFixed(1)} ft</span>
           </div>
         </div>
 
         {/* Stats Column */}
         <div className="space-y-4">
-          <div className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30 space-y-4">
+          <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 space-y-4">
             <div className="flex items-center gap-2 text-zinc-400">
               <Activity size={16} />
               <span className="text-xs font-bold uppercase tracking-wider">Current Sensor</span>
             </div>
             
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Gamma Ray</span>
+              <span className="instrument-metric-label">Gamma Ray</span>
               <div className="text-2xl font-mono text-emerald-500">{gammaRay.toFixed(1)} <span className="text-xs text-zinc-500">API</span></div>
             </div>
 
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Formation</span>
+              <span className="instrument-metric-label">Formation</span>
               <div className="text-sm font-bold text-white">{getCurrentFormation(depth).name}</div>
             </div>
           </div>
 
-          <div className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30 space-y-2">
+          <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 space-y-2">
             <div className="flex items-center gap-2 text-zinc-400">
               <Info size={16} />
               <span className="text-xs font-bold uppercase tracking-wider">MWD Insight</span>

@@ -52,26 +52,26 @@ export const AdvancedLogs: React.FC = () => {
   const currentLog = logTypes[activeLog];
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800 shadow-2xl overflow-hidden relative">
+    <div className="instrument overflow-hidden relative">
       {/* Background Grid Accent */}
       <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
       <div className="relative flex flex-col gap-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/10 rounded-xl">
+            <div className="instrument-icon">
               <Layers className="text-blue-500" size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white font-display">Advanced Formation Evaluation</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">LWD Multi-Sensor Interpretation</p>
+              <h3 className="instrument-title">Advanced Formation Evaluation</h3>
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">LWD Multi-Sensor Interpretation</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button 
               onClick={() => setShowInterpretation(!showInterpretation)}
               className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border ${
-                showInterpretation ? 'bg-blue-500 text-white border-blue-500' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                showInterpretation ? 'instrument-btn is-active' : 'instrument-btn'
               }`}
             >
               {showInterpretation ? 'Hide Interpretation' : 'Show Interpretation'}
@@ -86,9 +86,9 @@ export const AdvancedLogs: React.FC = () => {
               <button
                 key={log.id}
                 onClick={() => setActiveLog(i)}
-                className={`w-full text-left p-4 rounded-2xl transition-all flex items-center gap-4 border ${
+                className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-4 border ${
                   activeLog === i 
-                    ? 'bg-white border-white text-zinc-900 shadow-lg' 
+                    ? 'bg-emerald-500 border-emerald-500 text-zinc-950 shadow-none' 
                     : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
                 }`}
               >
@@ -104,7 +104,7 @@ export const AdvancedLogs: React.FC = () => {
           </div>
 
           {/* Main Content Area */}
-          <div className="lg:col-span-8 bg-zinc-800/50 rounded-3xl p-6 border border-zinc-700/50">
+          <div className="lg:col-span-8 instrument-panel">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeLog}
@@ -115,26 +115,26 @@ export const AdvancedLogs: React.FC = () => {
               >
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
-                    <h4 className="text-xl font-bold text-white">{currentLog.title}</h4>
+                    <h4 className="instrument-title">{currentLog.title}</h4>
                     <p className="text-sm text-zinc-400 leading-relaxed">{currentLog.description}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Unit</p>
+                    <p className="instrument-metric-label">Unit</p>
                     <p className="text-2xl font-mono text-white">{currentLog.unit}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.entries(currentLog.typicalValues).map(([key, value]) => (
-                    <div key={key} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 space-y-1">
-                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{key}</p>
+                    <div key={key} className="instrument-metric space-y-1">
+                      <p className="instrument-metric-label">{key}</p>
                       <p className="text-lg font-mono text-white">{value}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Simulated Log Chart */}
-                <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 h-40 relative overflow-hidden">
+                <div className="instrument-panel h-40 relative overflow-hidden">
                   <svg className="w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
                     <path 
                       d={`M ${[...Array(40)].map((_, i) => `${i * 10},${50 + (Math.random() - 0.5) * 40}`).join(' L ')}`}
@@ -164,7 +164,7 @@ export const AdvancedLogs: React.FC = () => {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 flex items-center gap-3 text-blue-400"
+                    className="instrument-tip text-emerald-400/90"
                   >
                     <ShieldCheck size={20} />
                     <p className="text-xs font-medium leading-relaxed">
@@ -183,7 +183,7 @@ export const AdvancedLogs: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-zinc-800/30 rounded-2xl p-4 border border-zinc-700/30 flex items-center gap-4">
+        <div className="instrument-tip flex items-center gap-4">
           <div className="p-2 bg-zinc-800 rounded-xl">
             <AlertTriangle className="text-zinc-500" size={20} />
           </div>

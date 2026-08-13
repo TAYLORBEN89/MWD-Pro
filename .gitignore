@@ -12,3 +12,8 @@ ios/App/App/GoogleService-Info.plist
 # Capacitor generated assets
 android/app/src/main/assets/public/
 ios/App/App/public/
+# Android signing secrets (never commit)
+*.jks
+*.keystore
+key.properties
+android/key.properties

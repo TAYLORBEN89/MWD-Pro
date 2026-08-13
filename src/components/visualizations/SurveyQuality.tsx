@@ -26,28 +26,28 @@ export const SurveyQuality: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-3xl p-8 border border-zinc-200 shadow-xl overflow-hidden">
+    <div className="instrument overflow-hidden">
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-xl">
-              <Compass className="text-indigo-500" size={24} />
+            <div className="p-2 bg-emerald-500/10 rounded-xl">
+              <Compass className="text-emerald-500" size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-zinc-900 font-display">Survey Quality Control Lab</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Validation & Error Analysis</p>
+              <h3 className="instrument-title">Survey Quality Control Lab</h3>
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">Validation & Error Analysis</p>
             </div>
           </div>
-          <div className="bg-zinc-100 px-4 py-2 rounded-xl border border-zinc-200">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Validated</p>
-            <p className="text-xl font-mono text-zinc-900 leading-none">{score}</p>
+          <div className="bg-zinc-100 px-4 py-2 rounded-xl border border-white/10">
+            <p className="instrument-metric-label">Validated</p>
+            <p className="text-xl font-mono text-zinc-100 leading-none">{score}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Survey Data Panel */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-100 space-y-6">
+            <div className="instrument-panel space-y-6">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Survey Parameters @ {survey.depth} ft</h4>
                 <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
@@ -66,14 +66,14 @@ export const SurveyQuality: React.FC = () => {
                   { label: 'B-Total', value: `${survey.b} nT`, icon: Zap, alert: Math.abs(survey.b - 52000) > 1000 },
                   { label: 'Dip Angle', value: `${survey.dip}°`, icon: Target, alert: Math.abs(survey.dip - 65) > 2 }
                 ].map((param, i) => (
-                  <div key={i} className={`p-4 rounded-2xl border transition-all ${
-                    param.alert ? 'bg-red-50 border-red-200' : 'bg-white border-zinc-200'
+                  <div key={i} className={`p-4 rounded-xl border transition-all ${
+                    param.alert ? 'bg-red-50 border-red-200' : 'bg-surface border-white/10'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <param.icon size={14} className={param.alert ? 'text-red-500' : 'text-zinc-400'} />
-                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{param.label}</p>
+                      <p className="instrument-metric-label">{param.label}</p>
                     </div>
-                    <p className={`text-lg font-mono font-bold ${param.alert ? 'text-red-600' : 'text-zinc-900'}`}>{param.value}</p>
+                    <p className={`text-lg font-mono font-bold ${param.alert ? 'text-red-600' : 'text-zinc-100'}`}>{param.value}</p>
                   </div>
                 ))}
               </div>
@@ -82,14 +82,14 @@ export const SurveyQuality: React.FC = () => {
             <div className="flex gap-4">
               <button 
                 onClick={() => handleValidate(true)}
-                className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                className="flex-1 bg-emerald-500 text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all  shadow-emerald-500/20 flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={20} />
                 Accept Survey
               </button>
               <button 
                 onClick={() => handleValidate(false)}
-                className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                className="flex-1 bg-red-500 text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-red-600 transition-all  shadow-red-500/20 flex items-center justify-center gap-2"
               >
                 <AlertTriangle size={20} />
                 Reject Survey
@@ -99,12 +99,12 @@ export const SurveyQuality: React.FC = () => {
 
           {/* Analysis Panel */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-zinc-900 rounded-2xl p-6 border border-zinc-800 space-y-6">
+            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 space-y-6">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Error Ellipse Analysis</h4>
                 <button 
                   onClick={() => setShowCorrections(!showCorrections)}
-                  className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors"
+                  className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors"
                 >
                   {showCorrections ? 'Hide Corrections' : 'Apply Corrections'}
                 </button>
@@ -142,21 +142,21 @@ export const SurveyQuality: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Correction Methods</p>
+                <p className="instrument-metric-label">Correction Methods</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className={`p-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center transition-all ${
-                    showCorrections ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
+                    showCorrections ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
                   }`}>IFR Correction</div>
                   <div className={`p-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center transition-all ${
-                    showCorrections ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
+                    showCorrections ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
                   }`}>MSAC Analysis</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center gap-3">
-              <ShieldCheck className="text-indigo-500" size={20} />
-              <p className="text-xs text-indigo-700 leading-relaxed font-medium">
+            <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-3">
+              <ShieldCheck className="text-emerald-500" size={20} />
+              <p className="text-xs text-emerald-300 leading-relaxed font-medium">
                 <span className="font-bold">QC Tip:</span> G-Total should always be close to 1.000 G. Significant deviations indicate magnetic interference or tool vibration during the survey.
               </p>
             </div>

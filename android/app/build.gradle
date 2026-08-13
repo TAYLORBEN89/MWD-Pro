@@ -1,15 +1,22 @@
 apply plugin: 'com.android.application'
 
+// Load upload keystore credentials from MWD-Keystore (outside git)
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = new File('C:/Users/btayl/OneDrive/Documents/MWD-Keystore/key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.mwdpro.app"
-    compileSdk 35
+    compileSdk 36
     ndkVersion "25.1.8937393"
     defaultConfig {
         applicationId "com.mwdpro.app"
         minSdk 24
-        targetSdk 35
-        versionCode 6
-        versionName "1.5"
+        targetSdk 36
+        versionCode 14
+        versionName "1.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -17,11 +24,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             ndk { debugSymbolLevel 'FULL' }
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     compileOptions {

@@ -101,7 +101,7 @@ export const WellboreTrajectory: React.FC = () => {
   const currentPoint = visibleData[visibleData.length - 1] || surveyData[0];
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-8">
+    <div className="instrument space-y-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
@@ -117,7 +117,7 @@ export const WellboreTrajectory: React.FC = () => {
             <button
               key={type}
               onClick={() => setWellType(type)}
-              className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest transition-all ${wellType === type ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
+              className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest transition-all ${wellType === type ? 'bg-emerald-500 text-zinc-100' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
             >
               {type}
             </button>
@@ -128,11 +128,11 @@ export const WellboreTrajectory: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px]">
         {/* Profile View (TVD vs VS) */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="flex items-center gap-2 instrument-metric-label">
             <MoveDown size={12} />
             <span>Profile View (TVD vs VS)</span>
           </div>
-          <div className="h-full bg-zinc-950/50 rounded-2xl p-2 border border-zinc-800/50">
+          <div className="h-full bg-zinc-950/50 rounded-xl p-2 border border-zinc-800/50">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={visibleData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
@@ -158,11 +158,11 @@ export const WellboreTrajectory: React.FC = () => {
 
         {/* Plan View (North vs East) */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="flex items-center gap-2 instrument-metric-label">
             <Compass size={12} />
             <span>Plan View (North vs East)</span>
           </div>
-          <div className="h-full bg-zinc-950/50 rounded-2xl p-2 border border-zinc-800/50">
+          <div className="h-full bg-zinc-950/50 rounded-xl p-2 border border-zinc-800/50">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={visibleData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -191,22 +191,22 @@ export const WellboreTrajectory: React.FC = () => {
 
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 text-center">
+          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
             <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Inclination</p>
             <p className="text-lg font-mono font-bold text-white">{Math.round(currentPoint.inc)}°</p>
           </div>
-          <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 text-center">
+          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
             <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Azimuth</p>
             <p className="text-lg font-mono font-bold text-white">{Math.round(currentPoint.azi)}°</p>
           </div>
-          <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 text-center">
+          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
             <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">TVD</p>
             <p className="text-lg font-mono font-bold text-white">{Math.round(currentPoint.tvd)}'</p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="flex justify-between instrument-metric-label">
             <span>Drill Depth (MD)</span>
             <span>{drillDepth}'</span>
           </div>
@@ -221,7 +221,7 @@ export const WellboreTrajectory: React.FC = () => {
           />
         </div>
 
-        <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 flex gap-3">
+        <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 flex gap-3">
           <Info size={16} className="text-zinc-500 shrink-0 mt-0.5" />
           <p className="text-[10px] text-zinc-500 leading-relaxed">
             The 3D path of a wellbore is defined by its <strong>Inclination</strong> (vertical angle) and <strong>Azimuth</strong> (horizontal angle) at each <strong>Measured Depth</strong>. The Minimum Curvature method calculates the TVD, North, and East coordinates between survey points.

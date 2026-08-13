@@ -111,7 +111,7 @@ export const MagneticInterference: React.FC = () => {
   const isSevere = totalInterference > 0.5;
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl">
+    <div className="instrument">
       <div className="flex flex-col lg:flex-row gap-8 items-center">
         {/* Visualization */}
         <div className="relative">
@@ -182,7 +182,7 @@ export const MagneticInterference: React.FC = () => {
               backgroundColor: isSevere ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
               borderColor: isSevere ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'
             }}
-            className="p-4 rounded-2xl border flex items-start gap-4"
+            className="p-4 rounded-xl border flex items-start gap-4"
           >
             {isSevere ? (
               <AlertTriangle className="text-red-500 shrink-0" size={24} />

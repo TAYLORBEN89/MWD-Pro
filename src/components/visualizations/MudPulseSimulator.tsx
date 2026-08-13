@@ -92,28 +92,28 @@ export const MudPulseSimulator: React.FC = () => {
   }, [dataStream, noise, isTransmitting]);
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-6">
+    <div className="instrument space-y-5">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-xl">
+          <div className="instrument-icon">
             <Radio className="text-emerald-500" size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white font-display">Mud Pulse Telemetry Simulator</h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Positive Pulse Encoding (Manchester)</p>
+            <h3 className="instrument-title">Mud Pulse Telemetry Simulator</h3>
+            <p className="instrument-subtitle">Positive Pulse Encoding (Manchester)</p>
           </div>
         </div>
         <button 
           onClick={() => setIsTransmitting(!isTransmitting)}
           className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            isTransmitting ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-900'
+            isTransmitting ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-100'
           }`}
         >
           {isTransmitting ? 'Stop Pulse' : 'Start Pulse'}
         </button>
       </div>
 
-      <div className="relative bg-black/40 rounded-2xl border border-zinc-800 p-4 overflow-hidden">
+      <div className="relative instrument-panel p-4 overflow-hidden">
         <canvas 
           ref={canvasRef} 
           width={800} 
@@ -128,7 +128,7 @@ export const MudPulseSimulator: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30">
+        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
           <div className="flex items-center gap-2 text-zinc-400">
             <Settings2 size={16} />
             <span className="text-xs font-bold uppercase tracking-wider">Signal Parameters</span>
@@ -168,7 +168,7 @@ export const MudPulseSimulator: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30">
+        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
           <div className="flex items-center gap-2 text-zinc-400">
             <Activity size={16} />
             <span className="text-xs font-bold uppercase tracking-wider">Decoded Bitstream</span>

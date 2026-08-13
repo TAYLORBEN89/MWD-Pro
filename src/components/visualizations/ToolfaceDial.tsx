@@ -99,7 +99,7 @@ export const ToolfaceDial: React.FC<ToolfaceDialProps> = ({ initialValue = 0 }) 
   }, [isSliding]);
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-6">
+    <div className="instrument space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={`p-2 rounded-lg ${mode === 'gravity' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -134,20 +134,20 @@ export const ToolfaceDial: React.FC<ToolfaceDialProps> = ({ initialValue = 0 }) 
         <div className="flex gap-2">
           <button 
             onClick={() => setMode('gravity')}
-            className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'gravity' ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
+            className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'gravity' ? 'bg-emerald-500 text-zinc-100' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
           >
             Gravity
           </button>
           <button 
             onClick={() => setMode('magnetic')}
-            className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'magnetic' ? 'bg-blue-500 text-zinc-900' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
+            className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'magnetic' ? 'bg-blue-500 text-zinc-100' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
           >
             Magnetic
           </button>
         </div>
 
         <div className="space-y-2">
-          <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="flex justify-between instrument-metric-label">
             <span>Adjust Toolface</span>
             <span>{Math.round(toolface)}°</span>
           </div>
@@ -169,7 +169,7 @@ export const ToolfaceDial: React.FC<ToolfaceDialProps> = ({ initialValue = 0 }) 
           {isSliding ? 'Stop Sliding Simulation' : 'Simulate Sliding Mode'}
         </button>
 
-        <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 flex gap-3">
+        <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 flex gap-3">
           <Info size={16} className="text-zinc-500 shrink-0 mt-0.5" />
           <p className="text-[10px] text-zinc-500 leading-relaxed">
             {mode === 'gravity' 

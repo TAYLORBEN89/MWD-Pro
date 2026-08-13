@@ -57,7 +57,7 @@ export const ToolArchitecture: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl overflow-hidden">
+    <div className="instrument overflow-hidden">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Tool Diagram */}
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -113,7 +113,7 @@ export const ToolArchitecture: React.FC = () => {
                   return (
                     <>
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl ${comp.color}`}>
+                        <div className={`p-3 rounded-xl ${comp.color}`}>
                           <comp.icon size={32} className="text-white" />
                         </div>
                         <div>
@@ -150,11 +150,11 @@ export const ToolArchitecture: React.FC = () => {
                 animate={{ opacity: 1 }}
                 className="text-center space-y-4"
               >
-                <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-600 mx-auto">
+                <div className="w-16 h-16 surface-elevated rounded-xl flex items-center justify-center text-zinc-600 mx-auto">
                   <Activity size={32} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Interactive Tool Explorer</h3>
+                  <h3 className="instrument-title">Interactive Tool Explorer</h3>
                   <p className="text-zinc-500 text-sm">Click on any section of the MWD tool to explore its internal architecture and function.</p>
                 </div>
               </motion.div>

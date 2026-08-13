@@ -55,11 +55,11 @@ export const RigWorkflow: React.FC = () => {
   const allTasksDone = currentStep.tasks.every(t => completedTasks.includes(t));
 
   return (
-    <div className="bg-white rounded-3xl p-8 border border-zinc-200 shadow-xl">
+    <div className="instrument">
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="text-2xl font-bold text-zinc-900 font-display">MWD Operational Workflow</h3>
+            <h3 className="instrument-title">MWD Operational Workflow</h3>
             <p className="text-sm text-zinc-500">Master the step-by-step procedures of an MWD field technician.</p>
           </div>
           <div className="flex gap-1">
@@ -81,13 +81,13 @@ export const RigWorkflow: React.FC = () => {
               <button
                 key={step.id}
                 onClick={() => setActiveStep(i)}
-                className={`w-full text-left p-4 rounded-2xl transition-all flex items-center gap-4 border ${
+                className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-4 border ${
                   activeStep === i 
-                    ? 'bg-zinc-900 border-zinc-900 text-white shadow-lg' 
-                    : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'
+                    ? 'bg-zinc-900 border-zinc-900 text-white ' 
+                    : 'bg-elevated border-white/5 text-zinc-500 hover:bg-zinc-700'
                 }`}
               >
-                <div className={`p-2 rounded-xl ${activeStep === i ? 'bg-white/10' : step.bg}`}>
+                <div className={`p-2 rounded-xl ${activeStep === i ? 'bg-surface/10' : step.bg}`}>
                   <step.icon size={20} className={activeStep === i ? 'text-white' : step.color} />
                 </div>
                 <div className="flex-1">
@@ -99,7 +99,7 @@ export const RigWorkflow: React.FC = () => {
           </div>
 
           {/* Main Content Area */}
-          <div className="lg:col-span-8 bg-zinc-50 rounded-3xl p-6 border border-zinc-100">
+          <div className="lg:col-span-8 instrument-panel">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
@@ -109,8 +109,8 @@ export const RigWorkflow: React.FC = () => {
                 className="space-y-6"
               >
                 <div className="space-y-2">
-                  <h4 className="text-xl font-bold text-zinc-900">{currentStep.title}</h4>
-                  <p className="text-sm text-zinc-600 leading-relaxed">{currentStep.description}</p>
+                  <h4 className="text-xl font-bold text-zinc-100">{currentStep.title}</h4>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{currentStep.description}</p>
                 </div>
 
                 <div className="space-y-3">
@@ -120,16 +120,16 @@ export const RigWorkflow: React.FC = () => {
                       <button
                         key={task}
                         onClick={() => toggleTask(task)}
-                        className={`p-4 rounded-2xl text-left transition-all flex items-center gap-3 border ${
+                        className={`p-4 rounded-xl text-left transition-all flex items-center gap-3 border ${
                           completedTasks.includes(task)
                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                            : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400'
+                            : 'bg-surface border-white/10 text-zinc-400 hover:border-zinc-400'
                         }`}
                       >
                         {completedTasks.includes(task) ? (
                           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
                         ) : (
-                          <div className="w-[18px] h-[18px] rounded-full border-2 border-zinc-200 shrink-0" />
+                          <div className="w-[18px] h-[18px] rounded-full border-2 border-white/10 shrink-0" />
                         )}
                         <span className="text-sm font-medium">{task}</span>
                       </button>
@@ -141,7 +141,7 @@ export const RigWorkflow: React.FC = () => {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-emerald-500 text-white p-4 rounded-2xl flex items-center justify-between"
+                    className="bg-emerald-500 text-white p-4 rounded-xl flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
                       <CheckCircle2 size={24} />
@@ -153,7 +153,7 @@ export const RigWorkflow: React.FC = () => {
                     {activeStep < workflowSteps.length - 1 && (
                       <button 
                         onClick={() => setActiveStep(prev => prev + 1)}
-                        className="bg-white text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-50 transition-colors"
+                        className="bg-surface text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-50 transition-colors"
                       >
                         Next Step
                       </button>
@@ -162,7 +162,7 @@ export const RigWorkflow: React.FC = () => {
                 )}
 
                 {!allTasksDone && (
-                  <div className="bg-zinc-200/50 p-4 rounded-2xl flex items-center gap-3 text-zinc-500">
+                  <div className="bg-zinc-200/50 p-4 rounded-xl flex items-center gap-3 text-zinc-500">
                     <AlertCircle size={20} />
                     <p className="text-xs font-medium">Complete all tasks above to proceed to the next operational phase.</p>
                   </div>

@@ -57,16 +57,16 @@ export const GeosteeringInterpretation: React.FC = () => {
   const inZone = currentGamma < 60 && currentGamma > 0;
 
   return (
-    <div className="bg-white rounded-3xl p-8 border border-zinc-200 shadow-xl overflow-hidden">
+    <div className="instrument overflow-hidden">
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-xl">
+            <div className="instrument-icon">
               <Layers className="text-emerald-500" size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-zinc-900 font-display">Geosteering Interpretation Lab</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Real-Time Formation Correlation</p>
+              <h3 className="instrument-title">Geosteering Interpretation Lab</h3>
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">Real-Time Formation Correlation</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -89,10 +89,10 @@ export const GeosteeringInterpretation: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Log Viewer */}
-          <div className="lg:col-span-8 bg-zinc-900 rounded-3xl p-6 border border-zinc-800 relative h-[500px] flex gap-4">
+          <div className="lg:col-span-8 bg-zinc-900 rounded-xl p-6 border border-zinc-800 relative h-[500px] flex gap-4">
             {/* Offset Log (Reference) */}
             <div className={`flex-1 flex flex-col transition-opacity duration-500 ${showOffset ? 'opacity-100' : 'opacity-10'}`}>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4 text-center">Offset Log (Planned)</p>
+              <p className="instrument-metric-label mb-4 text-center">Offset Log (Planned)</p>
               <div className="flex-1 relative border-r border-zinc-800">
                 <svg className="w-full h-full" viewBox="0 0 100 400" preserveAspectRatio="none">
                   <path 
@@ -174,7 +174,7 @@ export const GeosteeringInterpretation: React.FC = () => {
 
           {/* Interpretation Panel */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-100 space-y-4">
+            <div className="instrument-panel space-y-4">
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Geological Interpretation</h4>
               <div className="space-y-3">
                 {[
@@ -186,25 +186,25 @@ export const GeosteeringInterpretation: React.FC = () => {
                     key={item.id}
                     className={`p-4 rounded-xl border transition-all flex items-center gap-3 ${
                       item.condition 
-                        ? 'bg-white border-zinc-900 shadow-sm' 
+                        ? 'bg-emerald-500 border-emerald-500 shadow-none' 
                         : 'bg-zinc-100 border-transparent opacity-50'
                     }`}
                   >
-                    {item.condition ? <CheckCircle2 size={18} className="text-emerald-500" /> : <div className="w-[18px] h-[18px] rounded-full border-2 border-zinc-200" />}
-                    <span className="text-sm font-bold text-zinc-900">{item.label}</span>
+                    {item.condition ? <CheckCircle2 size={18} className="text-emerald-500" /> : <div className="w-[18px] h-[18px] rounded-full border-2 border-white/10" />}
+                    <span className="text-sm font-semibold text-zinc-100">{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-center gap-3">
+            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center gap-3">
               <AlertTriangle className="text-amber-500" size={20} />
               <p className="text-xs text-amber-700 leading-relaxed font-medium">
                 <span className="font-bold">Geosteering Tip:</span> Gamma ray lag means the tool sees the formation several feet after the bit. Always account for the "Gamma-to-Bit" distance when making steering calls.
               </p>
             </div>
 
-            <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 space-y-4">
+            <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800 space-y-4">
               <div className="flex items-center gap-2">
                 <Target size={16} className="text-emerald-500" />
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Steering Decision</h4>

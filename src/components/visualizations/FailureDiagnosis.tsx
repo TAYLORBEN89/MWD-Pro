@@ -60,23 +60,23 @@ export const FailureDiagnosis: React.FC = () => {
   };
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800 shadow-2xl overflow-hidden relative">
+    <div className="instrument overflow-hidden relative">
       {/* Background Grid Accent */}
       <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
       <div className="relative flex flex-col gap-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-500/10 rounded-xl">
+            <div className="instrument-icon">
               <AlertTriangle className="text-red-500" size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white font-display">MWD Failure Diagnostic Lab</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Post-Run Analysis Simulator</p>
+              <h3 className="instrument-title">MWD Failure Diagnostic Lab</h3>
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">Post-Run Analysis Simulator</p>
             </div>
           </div>
           <div className="bg-zinc-800 px-4 py-2 rounded-xl border border-zinc-700">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Score</p>
+            <p className="instrument-metric-label">Score</p>
             <p className="text-xl font-mono text-white leading-none">{score}</p>
           </div>
         </div>
@@ -84,7 +84,7 @@ export const FailureDiagnosis: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Symptoms Panel */}
           <div className="space-y-6">
-            <div className="bg-zinc-800/50 rounded-2xl p-6 border border-zinc-700/50 space-y-4">
+            <div className="bg-zinc-800/50 rounded-xl p-6 border border-zinc-700/50 space-y-4">
               <div className="flex items-center gap-2">
                 <Activity size={16} className="text-zinc-500" />
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Real-Time Symptoms</h4>
@@ -106,14 +106,14 @@ export const FailureDiagnosis: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30 text-center">
+              <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 text-center">
                 <Thermometer className="mx-auto mb-2 text-zinc-500" size={20} />
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Temp</p>
+                <p className="instrument-metric-label">Temp</p>
                 <p className="text-lg font-mono text-white">145°C</p>
               </div>
-              <div className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30 text-center">
+              <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 text-center">
                 <Zap className="mx-auto mb-2 text-zinc-500" size={20} />
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Voltage</p>
+                <p className="instrument-metric-label">Voltage</p>
                 <p className="text-lg font-mono text-white">24.2V</p>
               </div>
             </div>
@@ -128,7 +128,7 @@ export const FailureDiagnosis: React.FC = () => {
                   key={diagnosis}
                   disabled={showResult}
                   onClick={() => handleDiagnose(diagnosis)}
-                  className={`w-full p-4 rounded-2xl text-left transition-all border flex items-center justify-between ${
+                  className={`w-full p-4 rounded-xl text-left transition-all border flex items-center justify-between ${
                     selectedDiagnosis === diagnosis
                       ? diagnosis === scenario.correctDiagnosis
                         ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
@@ -149,7 +149,7 @@ export const FailureDiagnosis: React.FC = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-zinc-800/80 p-6 rounded-2xl border border-zinc-700 space-y-4"
+                  className="bg-zinc-800/80 p-6 rounded-xl border border-zinc-700 space-y-4"
                 >
                   <div className="space-y-2">
                     <h5 className="text-white font-bold flex items-center gap-2">
@@ -163,7 +163,7 @@ export const FailureDiagnosis: React.FC = () => {
                   </div>
                   <button
                     onClick={nextScenario}
-                    className="w-full bg-white text-zinc-900 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+                    className="w-full bg-emerald-500 text-zinc-950 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
                   >
                     <RefreshCw size={16} />
                     Next Case Study
@@ -174,7 +174,7 @@ export const FailureDiagnosis: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-zinc-800/30 rounded-2xl p-4 border border-zinc-700/30 flex items-center gap-4">
+        <div className="instrument-tip flex items-center gap-4">
           <div className="p-2 bg-zinc-800 rounded-xl">
             <ShieldCheck className="text-zinc-500" size={20} />
           </div>

@@ -3,45 +3,384 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────
+   MWD Pro Design System — dark, sharp, minimal
+   ───────────────────────────────────────────── */
+:root {
+  --canvas: #09090b;
+  --surface: #18181b;
+  --elevated: #27272a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --text-faint: #71717a;
+  --accent: #10b981;
+  --accent-dim: rgba(16, 185, 129, 0.12);
+  --accent-border: rgba(16, 185, 129, 0.25);
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.12);
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+}
+
 @layer base {
+  html {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-zinc-50 text-zinc-900 antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply antialiased;
+    background: var(--canvas);
+    color: var(--text);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+  }
+
+  ::selection {
+    background: rgba(16, 185, 129, 0.35);
+    color: #fff;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
   }
 }
 
-.hardware-card {
-  @apply bg-[#151619] text-white rounded-3xl border border-white/10 transition-all duration-300;
-}
+@layer components {
+  /* ── App shell ── */
+  .app-shell {
+    @apply min-h-screen w-full max-w-md mx-auto flex flex-col relative overflow-hidden;
+    background: var(--canvas);
+    box-shadow: 0 0 0 1px var(--border);
+  }
 
-.hardware-label {
-  @apply text-[10px] font-bold uppercase tracking-widest text-zinc-500 font-display;
-}
+  .app-header {
+    @apply fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between max-w-md mx-auto;
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
 
-.hardware-value {
-  @apply font-display font-semibold tracking-tight;
-}
+  .app-main {
+    @apply flex-1 px-5 pt-20 pb-24 overflow-y-auto;
+  }
 
-.apple-blur {
-  @apply backdrop-blur-xl bg-white/80 border border-white/20;
-}
+  /* ── Surfaces ── */
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    @apply transition-colors duration-200;
+  }
 
-.apple-card {
-  @apply bg-white rounded-3xl shadow-sm border border-zinc-100 transition-all duration-300;
-}
+  .surface-elevated {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
 
-.apple-card:hover {
-  @apply shadow-md border-zinc-200;
-}
+  .surface-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
 
-.btn-primary {
-  @apply bg-zinc-900 text-white px-6 py-3 rounded-2xl font-medium transition-all active:scale-95 disabled:opacity-50;
-}
+  /* ── Typography helpers ── */
+  .label-meta {
+    @apply text-[11px] font-medium tracking-wide text-zinc-500;
+  }
 
-.btn-secondary {
-  @apply bg-zinc-100 text-zinc-900 px-6 py-3 rounded-2xl font-medium transition-all active:scale-95;
-}
+  .label-caps {
+    @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500;
+  }
 
-.btn-hardware {
-  @apply bg-emerald-500 text-zinc-900 px-6 py-3 rounded-2xl font-bold transition-all active:scale-95 hover:bg-emerald-400;
+  .title-display {
+    @apply font-display font-semibold tracking-tight text-zinc-50;
+  }
+
+  .body-muted {
+    @apply text-sm text-zinc-400 leading-relaxed;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 font-semibold text-sm transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
+    background: var(--accent);
+    color: #052e1c;
+    border-radius: var(--radius);
+  }
+
+  .btn-primary:hover {
+    background: #34d399;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 font-medium text-sm text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-40;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--border-strong);
+    background: #3f3f46;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-100;
+    border-radius: var(--radius);
+  }
+
+  .btn-hardware {
+    @apply btn-primary;
+  }
+
+  /* ── Inputs ── */
+  .input-field {
+    @apply w-full px-4 py-3.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-all;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .input-field:focus {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  /* ── Progress ── */
+  .progress-track {
+    @apply h-1.5 rounded-full overflow-hidden;
+    background: var(--elevated);
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full;
+    background: var(--accent);
+  }
+
+  /* ── Module list ── */
+  .module-card {
+    @apply w-full text-left p-4 transition-all active:scale-[0.99];
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .module-card:hover {
+    border-color: var(--accent-border);
+  }
+
+  .module-card.is-complete {
+    border-color: var(--accent-border);
+  }
+
+  .module-card.is-locked {
+    @apply opacity-60;
+  }
+
+  /* ── Quiz options ── */
+  .quiz-option {
+    @apply w-full p-4 text-left text-sm font-medium transition-all flex items-center justify-between active:scale-[0.99];
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+  }
+
+  .quiz-option:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .quiz-option.is-selected {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: #6ee7b7;
+  }
+
+  .quiz-option.is-correct {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: #6ee7b7;
+  }
+
+  .quiz-option.is-wrong {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: var(--danger-dim);
+    color: #fca5a5;
+  }
+
+  /* ── Paywall ── */
+  .paywall-card {
+    @apply p-6 relative overflow-hidden;
+    background: linear-gradient(160deg, #18181b 0%, #0f1f18 100%);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-xl);
+  }
+
+  /* ── Legacy aliases (map old classes) ── */
+  .hardware-card {
+    @apply surface-card text-white;
+  }
+
+  .hardware-label {
+    @apply label-caps;
+  }
+
+  .hardware-value {
+    @apply font-display font-semibold tracking-tight tabular-nums;
+  }
+
+  .apple-blur {
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+  }
+
+  .apple-card {
+    @apply surface-card;
+  }
+
+  .apple-card:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* ── Instrument (simulators) ── */
+  .instrument {
+    @apply relative overflow-hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 1.25rem;
+  }
+
+  .instrument-header {
+    @apply flex items-start justify-between gap-3 mb-5;
+  }
+
+  .instrument-title-row {
+    @apply flex items-center gap-3 min-w-0;
+  }
+
+  .instrument-icon {
+    @apply flex items-center justify-center w-9 h-9 shrink-0;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: var(--radius);
+  }
+
+  .instrument-title {
+    @apply text-base font-semibold font-display tracking-tight text-zinc-50 leading-tight;
+  }
+
+  .instrument-subtitle {
+    @apply text-[11px] text-zinc-500 mt-0.5;
+  }
+
+  .instrument-panel {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    @apply p-4;
+  }
+
+  .instrument-chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-zinc-300;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+
+  .instrument-metric {
+    @apply instrument-panel space-y-1;
+  }
+
+  .instrument-metric-label {
+    @apply label-caps;
+  }
+
+  .instrument-metric-value {
+    @apply text-lg font-display font-semibold tracking-tight text-zinc-50 tabular-nums;
+  }
+
+  .instrument-btn {
+    @apply px-3 py-2 text-xs font-semibold transition-all;
+    background: var(--elevated);
+    color: #a1a1aa;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .instrument-btn:hover {
+    color: #fafafa;
+    border-color: var(--border-strong);
+  }
+
+  .instrument-btn.is-active {
+    background: var(--accent);
+    color: #052e1c;
+    border-color: transparent;
+  }
+
+  .instrument-tip {
+    @apply flex items-start gap-3 p-3 text-xs text-zinc-400 leading-relaxed;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* ── Prose (lesson content) ── */
+  .prose-mwd {
+    @apply max-w-none text-zinc-400 leading-relaxed;
+  }
+
+  .prose-mwd h1,
+  .prose-mwd h2,
+  .prose-mwd h3,
+  .prose-mwd h4 {
+    @apply font-display font-semibold tracking-tight text-zinc-50;
+  }
+
+  .prose-mwd h3 {
+    @apply text-lg mt-8 mb-3;
+  }
+
+  .prose-mwd p {
+    @apply text-zinc-400 leading-relaxed mb-4;
+  }
+
+  .prose-mwd li {
+    @apply text-zinc-400;
+  }
+
+  .prose-mwd strong {
+    @apply text-zinc-200 font-semibold;
+  }
+
+  .prose-mwd a {
+    @apply text-emerald-400 no-underline hover:underline;
+  }
+
+  .prose-mwd blockquote {
+    @apply border-l-2 border-emerald-500 bg-emerald-500/5 py-3 px-4 my-4 not-italic text-zinc-300 rounded-r-lg;
+  }
+
+  .prose-mwd hr {
+    @apply border-white/5 my-8;
+  }
+
+  .prose-mwd code {
+    @apply text-emerald-300 text-[0.9em] bg-white/5 px-1.5 py-0.5 rounded;
+  }
+
+  .prose-mwd ul {
+    @apply list-disc pl-5 space-y-1 mb-4;
+  }
+
+  .prose-mwd ol {
+    @apply list-decimal pl-5 space-y-1 mb-4;
+  }
 }

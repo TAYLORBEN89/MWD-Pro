@@ -27,22 +27,22 @@ export const VibrationMonitor: React.FC = () => {
   };
 
   return (
-    <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 shadow-2xl">
+    <div className="instrument">
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-xl">
+            <div className="instrument-icon">
               <Activity className="text-emerald-500" size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white font-display">Real-Time Vibration Monitor</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Downhole Dynamics Simulation</p>
+              <h3 className="instrument-title">Real-Time Vibration Monitor</h3>
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">Downhole Dynamics Simulation</p>
             </div>
           </div>
           <button 
             onClick={() => setIsSimulating(!isSimulating)}
             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-              isSimulating ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-900'
+              isSimulating ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-100'
             }`}
           >
             {isSimulating ? 'Stop Simulation' : 'Start Simulation'}
@@ -57,9 +57,9 @@ export const VibrationMonitor: React.FC = () => {
           ].map((vib, i) => {
             const status = getStatus(vib.value);
             return (
-              <div key={i} className="bg-zinc-800/50 rounded-2xl p-4 border border-zinc-700/50 space-y-4">
+              <div key={i} className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{vib.label}</span>
+                  <span className="instrument-metric-label">{vib.label}</span>
                   <span className={`text-[10px] font-bold uppercase tracking-widest ${status.color}`}>{status.label}</span>
                 </div>
                 
@@ -96,7 +96,7 @@ export const VibrationMonitor: React.FC = () => {
           })}
         </div>
 
-        <div className="bg-zinc-800/30 rounded-2xl p-4 border border-zinc-700/30 flex items-center gap-4">
+        <div className="instrument-tip flex items-center gap-4">
           <div className="p-2 bg-zinc-800 rounded-xl">
             <ShieldCheck className="text-zinc-500" size={20} />
           </div>
