@@ -9,7 +9,7 @@ import { rateLimit } from "express-rate-limit";
 import admin from "firebase-admin";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import fs from "fs";
-import { google } from "googleapis";
+// googleapis loaded lazily in native purchase verify
 import { sendWelcomeEmail, sendPurchaseEmail, isEmailConfigured } from "./email.js";
 
 dotenv.config();
@@ -479,6 +479,7 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
           const serviceAccount = JSON.parse(serviceAccountStr);
           const packageName = getEnv("VITE_GOOGLE_PLAY_PACKAGE_NAME", "com.mwdpro.app");
           
+          const { google } = await import("googleapis");
           const auth = new google.auth.GoogleAuth({
             credentials: serviceAccount,
             scopes: ['https://www.googleapis.com/auth/androidpublisher'],
