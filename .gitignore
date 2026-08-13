@@ -17,3 +17,9 @@ ios/App/App/public/
 *.keystore
 key.properties
 android/key.properties
+.vercel
+.env*
+
+.env.local
+.env
+

@@ -20,6 +20,7 @@ import {
   OperationType
 } from './firebase';
 import { AlertCircle } from 'lucide-react';
+import { requestWelcomeEmail } from './lib/emailClient';
 
 import { 
   Badge,
@@ -114,7 +115,20 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             profileData.email = currentUser.email;
           }
 
+          // Detect first profile write for welcome email
+          const existing = await getDoc(userRef);
+          const isNewProfile = !existing.exists() || !existing.data()?.welcomeEmailSent;
+
           await setDoc(userRef, profileData, { merge: true });
+
+          if (isNewProfile && currentUser.email) {
+            // Non-blocking; server is idempotent via welcomeEmailSent
+            void requestWelcomeEmail({
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName,
+            });
+          }
         } catch (error) {
           console.error("Error syncing user profile:", error);
         }

@@ -10,6 +10,7 @@ import admin from "firebase-admin";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import { google } from "googleapis";
+import { sendWelcomeEmail, sendPurchaseEmail, isEmailConfigured } from "./email";
 
 dotenv.config();
 
@@ -255,6 +256,68 @@ handleApiRoute("/ping", (req, res) => {
 handleApiRoute("/health", (req, res) => {
   res.json({ status: "ok", env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
 });
+// Email: welcome (idempotent via Firestore flag)
+handleApiRoute("/email/welcome", async (req, res) => {
+  try {
+    const { uid, email, displayName } = req.body || {};
+    const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
+    if (!uid || typeof uid !== "string" || uid.length > 128) {
+      return res.status(400).json({ error: "Invalid or missing uid" });
+    }
+    if (!email || !emailRegex.test(email) || email.length > 255) {
+      return res.status(400).json({ error: "Invalid or missing email" });
+    }
+
+    if (!isEmailConfigured()) {
+      return res.status(503).json({
+        error: "EMAIL_NOT_CONFIGURED",
+        message: "RESEND_API_KEY is not set. Add it in Vercel env to send mail from info@compessential.com.",
+      });
+    }
+
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const snap = await userRef.get();
+    if (snap.exists && snap.data()?.welcomeEmailSent) {
+      return res.json({ ok: true, alreadySent: true });
+    }
+
+    const result = await sendWelcomeEmail({
+      to: email,
+      name: displayName || snap.data()?.displayName || null,
+    });
+
+    if (result.ok) {
+      await userRef.set(
+        {
+          welcomeEmailSent: true,
+          welcomeEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          email,
+        },
+        { merge: true }
+      );
+    }
+
+    res.json({
+      ok: result.ok,
+      skipped: result.skipped || false,
+      id: result.id,
+      error: result.error,
+    });
+  } catch (err: any) {
+    console.error("Welcome email route error:", err);
+    res.status(500).json({ error: err.message || "Failed to send welcome email" });
+  }
+}, "post");
+
+// Email status (no secrets)
+handleApiRoute("/email/status", (_req, res) => {
+  res.json({
+    configured: isEmailConfigured(),
+    from: process.env.EMAIL_FROM || "info@compessential.com",
+  });
+});
+
 
 // Mount the router
 app.use("/api", apiRouter);
@@ -320,16 +383,43 @@ handleApiRoute("/webhook", async (req: any, res) => {
       throw new Error("Missing signature or secret.");
     }
     const event = stripeInstance.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
-    if (event.type === "checkout.session.completed") {
+        if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
+      const customerEmail =
+        session.customer_details?.email ||
+        session.customer_email ||
+        undefined;
       if (userId) {
         const db = getFirestore();
         await db.collection("users").doc(userId).set({
           hasPurchased: true,
           purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
-          stripeSessionId: session.id
+          stripeSessionId: session.id,
+          ...(customerEmail ? { email: customerEmail } : {}),
         }, { merge: true });
+
+        // Purchase confirmation from info@compessential.com
+        if (customerEmail && isEmailConfigured()) {
+          try {
+            const userSnap = await db.collection("users").doc(userId).get();
+            const already = userSnap.data()?.purchaseEmailSent;
+            if (!already) {
+              const mail = await sendPurchaseEmail({
+                to: customerEmail,
+                name: userSnap.data()?.displayName || session.customer_details?.name || null,
+              });
+              if (mail.ok) {
+                await db.collection("users").doc(userId).set({
+                  purchaseEmailSent: true,
+                  purchaseEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+              }
+            }
+          } catch (mailErr: any) {
+            console.error("Purchase email failed (non-fatal):", mailErr?.message || mailErr);
+          }
+        }
       }
     }
     res.json({ received: true });
@@ -434,6 +524,28 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
         platform: platform,
         transactionId: transactionId
       }, { merge: true });
+
+      // Optional purchase email for store buys when profile has email
+      try {
+        if (isEmailConfigured()) {
+          const userSnap = await db.collection("users").doc(userId).get();
+          const email = userSnap.data()?.email;
+          if (email && !userSnap.data()?.purchaseEmailSent) {
+            const mail = await sendPurchaseEmail({
+              to: email,
+              name: userSnap.data()?.displayName || null,
+            });
+            if (mail.ok) {
+              await db.collection("users").doc(userId).set({
+                purchaseEmailSent: true,
+                purchaseEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+              }, { merge: true });
+            }
+          }
+        }
+      } catch (mailErr: any) {
+        console.error("Native purchase email failed (non-fatal):", mailErr?.message || mailErr);
+      }
       
       return res.json({ success: true });
     }

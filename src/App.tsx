@@ -37,10 +37,14 @@ import {
   Search,
   Lock,
   CreditCard,
-  Sparkles
+  Sparkles,
+  Activity,
+  Target,
+  FlaskConical
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { mwdCurriculum } from './data/mwdData';
+import { simLabCatalog } from './data/simLab';
 import { CurriculumSection, QuizQuestion } from './types';
 import { useFirebase } from './FirebaseContext';
 import { CinemaAdMode } from './components/CinemaAdMode';
@@ -207,6 +211,8 @@ export default function App() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   // Check if Stripe keys are configured
+  const showDiagnostics = Boolean(import.meta.env.DEV) || import.meta.env.VITE_SHOW_DIAGNOSTICS === 'true';
+
   const isStripeConfigured = useMemo(() => {
     const hasKey = typeof stripePubKey === 'string' && stripePubKey.length > 5 && !stripePubKey.includes('TODO');
     console.log("Stripe Config Check:", { stripePubKey, hasKey });
@@ -261,7 +267,7 @@ export default function App() {
   }, [user, hasStarted]);
 
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
-  const [view, setView] = useState<'curriculum' | 'quiz' | 'results' | 'certification' | 'profile'>('curriculum');
+  const [view, setView] = useState<'curriculum' | 'quiz' | 'results' | 'certification' | 'profile' | 'simlab'>('curriculum');
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -361,44 +367,62 @@ export default function App() {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen w-full max-w-md mx-auto bg-canvas flex flex-col items-center justify-center p-8 text-center relative overflow-y-auto">
-        {/* Atmospheric Background */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle_at_50%_50%,#1a1a1a_0%,transparent_70%)] opacity-50" />
-          <div className="absolute top-[20%] right-[-20%] w-[80%] h-[80%] bg-[radial-gradient(circle_at_50%_50%,#10b981_0%,transparent_70%)] opacity-10 blur-[100px]" />
+      <div className="min-h-screen w-full max-w-md mx-auto bg-canvas flex flex-col justify-center p-6 relative overflow-y-auto">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-20%] right-[-30%] w-[80%] h-[50%] bg-[radial-gradient(circle_at_center,#10b981_0%,transparent_65%)] opacity-[0.12] blur-3xl" />
+          <div className="absolute bottom-[-10%] left-[-20%] w-[70%] h-[40%] bg-[radial-gradient(circle_at_center,#3f3f46_0%,transparent_70%)] opacity-40 blur-2xl" />
         </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 space-y-12"
+          className="relative z-10 space-y-8"
         >
-          <div className="space-y-6">
-            <div className="w-20 h-20 bg-emerald-500/100 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow">
-              <GraduationCap size={48} />
+          <div className="space-y-4 text-center">
+            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow">
+              <GraduationCap size={32} />
             </div>
             <div className="space-y-2">
-              <h1 className="text-4xl title-display tracking-tighter">MWD PRO</h1>
-              <p className="label-caps">Petro Academy Training</p>
+              <p className="label-caps text-emerald-400/90">Field engineer training</p>
+              <h1 className="text-3xl title-display tracking-tight">Train like you&apos;re on the rig</h1>
+              <p className="text-zinc-400 text-[15px] leading-relaxed max-w-sm mx-auto">
+                Practical MWD skills, interactive simulators, and certification—built for directional and MWD hands.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <p className="text-zinc-400 text-lg leading-relaxed">
-              Master the art of <span className="text-white font-semibold">Measurement While Drilling</span> with our professional certification program.
-            </p>
+          <div className="grid gap-3">
+            {[
+              { icon: Target, title: '15 structured modules', body: 'From surveys to geosteering and failure diagnosis' },
+              { icon: Activity, title: 'Live instrument sims', body: 'Toolface, mud pulse, vibration, and more' },
+              { icon: Trophy, title: 'Prove mastery', body: 'Quizzes + professional certificate path' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+              <div key={item.title} className="surface-card p-4 flex gap-3 items-start text-left">
+                <div className="instrument-icon shrink-0">
+                  <Icon size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">{item.title}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{item.body}</p>
+                </div>
+              </div>
+              );
+            })}
           </div>
 
-          <button 
-            onClick={() => setHasStarted(true)}
-            className="w-full btn-primary py-4 text-base"
-          >
-            Get Started
-          </button>
-
-          <p className="label-caps text-zinc-600">
-            Version 4.2.15 • Professional Edition
-          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => setHasStarted(true)}
+              className="w-full btn-primary py-4 text-base"
+            >
+              Start free modules
+            </button>
+            <p className="text-center text-xs text-zinc-500">
+              3 modules free · Full access <span className="text-zinc-300 font-medium">$49</span> lifetime
+            </p>
+          </div>
         </motion.div>
       </div>
     );
@@ -636,7 +660,7 @@ export default function App() {
                 <div className="space-y-6">
                   <div className="space-y-1">
                     <h2 className="text-2xl title-display">Training Modules</h2>
-                    <p className="body-muted">Complete all 15 sections to earn your MWD Certification.</p>
+                    <p className="body-muted">3 free modules to start. Complete the path for MWD Professional certification.</p>
                   </div>
 
                   <div className="relative">
@@ -708,10 +732,10 @@ export default function App() {
                         </div>
                         <div className="relative z-10 space-y-6">
                           <div className="space-y-2">
-                            <h3 className="text-xl title-display">Unlock Full Access</h3>
-                            <p className="text-zinc-400 text-sm leading-relaxed">Get lifetime access to all 15 modules, interactive simulators, and earn your professional MWD certification.</p>
+                            <h3 className="text-xl title-display">Go full access</h3>
+                            <p className="text-zinc-400 text-sm leading-relaxed">Unlock every module, every simulator, and the full certification path—one payment, lifetime updates.</p>
                             
-                            {!isStripeConfigured && (
+                            {showDiagnostics && !isStripeConfigured && (
                               <div className="mt-4 bg-black/40 border border-amber-500/20 rounded-2xl overflow-hidden">
                                 <div className="bg-amber-500/10 px-4 py-2 border-b border-amber-500/10 flex items-center justify-between">
                                   <div className="flex items-center gap-2">
@@ -1063,6 +1087,94 @@ export default function App() {
             </motion.div>
           )}
 
+          
+          {view === 'simlab' && (
+            <motion.div
+              key="simlab"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              className="space-y-6"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-zinc-500 mb-1">
+                  <FlaskConical size={16} />
+                  <span className="label-caps">Sim Lab</span>
+                </div>
+                <h2 className="text-2xl title-display">Practice instruments</h2>
+                <p className="body-muted">
+                  Run the same tools used inside modules. Free labs unlock immediately; pro labs require full access.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {simLabCatalog.map((sim) => {
+                  const Icon = sim.icon;
+                  const locked = !sim.isFree && !hasPurchased;
+                  return (
+                    <button
+                      key={sim.id}
+                      type="button"
+                      onClick={() => {
+                        if (locked) {
+                          setView('curriculum');
+                          setCurrentSectionId(null);
+                          return;
+                        }
+                        setView('curriculum');
+                        setCurrentSectionId(sim.sectionId);
+                      }}
+                      className={`module-card text-left ${locked ? 'is-locked' : ''}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="instrument-icon">
+                          {locked ? <Lock size={16} /> : <Icon size={16} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-zinc-100 text-[15px] truncate">{sim.title}</h3>
+                            {sim.isFree ? (
+                              <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium shrink-0">Free</span>
+                            ) : (
+                              <span className="text-[10px] bg-elevated text-zinc-500 px-2 py-0.5 rounded-full font-medium shrink-0">Pro</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-0.5">{sim.subtitle}</p>
+                        </div>
+                        <ChevronRight className="text-zinc-600 shrink-0" size={18} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {!hasPurchased && (
+                <div className="paywall-card space-y-4">
+                  <div>
+                    <h3 className="text-lg title-display">Unlock every lab</h3>
+                    <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
+                      Get lifetime access to all simulators and the full 15-module certification track.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="label-caps text-emerald-400/80">One-time</p>
+                      <p className="text-2xl title-display">$49</p>
+                    </div>
+                    <button
+                      onClick={handlePurchase}
+                      disabled={isPurchasing || !isStripeConfigured}
+                      className="btn-primary disabled:cursor-not-allowed"
+                    >
+                      {isPurchasing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <CreditCard size={18} />}
+                      {isPurchasing ? 'Processing…' : 'Unlock'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {view === 'profile' && (
             <motion.div 
               key="profile"
@@ -1223,17 +1335,24 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 py-3 flex justify-around items-center bg-canvas/90 backdrop-blur-xl border-t border-white/5">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-3 py-2.5 flex justify-around items-center bg-canvas/90 backdrop-blur-xl border-t border-white/5 z-50">
         <button 
           onClick={() => { setView('curriculum'); setCurrentSectionId(null); }}
-          className={`flex flex-col items-center gap-1 ${view === 'curriculum' ? 'text-emerald-400' : 'text-zinc-500'}`}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'curriculum' || view === 'quiz' || view === 'results' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <BookOpen size={20} />
           <span className="text-[10px] font-medium tracking-wide">Learn</span>
         </button>
         <button 
+          onClick={() => { setView('simlab'); setCurrentSectionId(null); }}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'simlab' ? 'text-emerald-400' : 'text-zinc-500'}`}
+        >
+          <FlaskConical size={20} />
+          <span className="text-[10px] font-medium tracking-wide">Sim Lab</span>
+        </button>
+        <button 
           onClick={() => setView('profile')}
-          className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-emerald-400' : 'text-zinc-500'}`}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'profile' || view === 'certification' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <UserIcon size={20} />
           <span className="text-[10px] font-medium tracking-wide">Profile</span>
