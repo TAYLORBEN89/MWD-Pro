@@ -10,7 +10,7 @@ import admin from "firebase-admin";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import { google } from "googleapis";
-import { sendWelcomeEmail, sendPurchaseEmail, isEmailConfigured } from "./email";
+import { sendWelcomeEmail, sendPurchaseEmail, isEmailConfigured } from "./email.js";
 
 dotenv.config();
 
