@@ -10,7 +10,7 @@ import admin from "firebase-admin";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 // googleapis loaded lazily in native purchase verify
-import { sendWelcomeEmail, sendPurchaseEmail, isEmailConfigured } from "./email.js";
+import { sendWelcomeEmail, sendPurchaseEmail, sendCertificateEmail, isEmailConfigured } from "./email.js";
 
 dotenv.config();
 
@@ -317,6 +317,62 @@ handleApiRoute("/email/status", (_req, res) => {
     from: process.env.EMAIL_FROM || "info@compessential.com",
   });
 });
+
+// Certificate email (idempotent)
+handleApiRoute("/email/certificate", async (req, res) => {
+  try {
+    const { uid, email, displayName } = req.body || {};
+    const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
+    if (!uid || typeof uid !== "string" || uid.length > 128) {
+      return res.status(400).json({ error: "Invalid or missing uid" });
+    }
+    if (!email || !emailRegex.test(email) || email.length > 255) {
+      return res.status(400).json({ error: "Invalid or missing email" });
+    }
+    if (!isEmailConfigured()) {
+      return res.status(503).json({
+        error: "EMAIL_NOT_CONFIGURED",
+        message: "RESEND_API_KEY is not set.",
+      });
+    }
+
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const snap = await userRef.get();
+    if (snap.exists && snap.data()?.certificateEmailSent) {
+      return res.json({ ok: true, alreadySent: true });
+    }
+
+    const result = await sendCertificateEmail({
+      to: email,
+      name: displayName || snap.data()?.displayName || null,
+    });
+
+    if (result.ok) {
+      await userRef.set(
+        {
+          certificateEmailSent: true,
+          certificateEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          certified: true,
+          certifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          email,
+        },
+        { merge: true }
+      );
+    }
+
+    res.json({
+      ok: result.ok,
+      skipped: result.skipped || false,
+      id: result.id,
+      error: result.error,
+    });
+  } catch (err: any) {
+    console.error("Certificate email route error:", err);
+    res.status(500).json({ error: err.message || "Failed to send certificate email" });
+  }
+}, "post");
+
 
 
 // Mount the router

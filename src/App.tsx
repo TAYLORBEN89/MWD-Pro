@@ -53,6 +53,7 @@ import { getApiUrl } from './lib/api';
 import { payments } from './lib/payments';
 import { httpClient } from './lib/httpClient';
 import { Capacitor } from '@capacitor/core';
+import { requestCertificateEmail } from './lib/emailClient';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -273,6 +274,8 @@ export default function App() {
   const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSimId, setActiveSimId] = useState<string | null>(null);
+  const [certEmailSent, setCertEmailSent] = useState(false);
   const [showCinemaAd, setShowCinemaAd] = useState(false);
 
   const overallProgress = useMemo(() => {
@@ -1014,11 +1017,37 @@ export default function App() {
               <div className="grid gap-3">
                 {currentSectionId === 'section-15' && calculateScore() / currentQuizQuestions.length >= 0.8 && (
                   <button 
-                    onClick={() => setView('certification')}
+                    onClick={() => {
+                      setView('certification');
+                      if (user?.email && !certEmailSent) {
+                        setCertEmailSent(true);
+                        void requestCertificateEmail({
+                          uid: user.uid,
+                          email: user.email,
+                          displayName: user.displayName,
+                        });
+                      }
+                    }}
                     className="w-full btn-primary"
                   >
                     <Trophy size={20} /> Claim Certification
                   </button>
+                )}
+                {currentSectionId && ['section-1','section-2','section-3'].includes(currentSectionId) && !hasPurchased && calculateScore() / currentQuizQuestions.length >= 0.6 && (
+                  <div className="paywall-card space-y-3 text-left">
+                    <p className="label-caps text-emerald-400/80">You&apos;re learning fast</p>
+                    <h3 className="text-lg title-display">Unlock the remaining 12 modules</h3>
+                    <p className="text-sm text-zinc-400 leading-relaxed">
+                      Keep going with advanced telemetry, geosteering, failure labs, and full certification.
+                    </p>
+                    <button
+                      onClick={handlePurchase}
+                      disabled={isPurchasing || !isStripeConfigured}
+                      className="w-full btn-primary"
+                    >
+                      {isPurchasing ? 'Processing…' : 'Unlock full access — $49'}
+                    </button>
+                  </div>
                 )}
                 <button 
                   onClick={() => { setView('curriculum'); setCurrentSectionId(null); }}
@@ -1078,6 +1107,9 @@ export default function App() {
                 </div>
               </div>
 
+              <p className="text-center text-xs text-zinc-500">
+                A confirmation email is sent to your inbox from info@compessential.com
+              </p>
               <button 
                 onClick={() => setView('profile')}
                 className="w-full btn-primary"
@@ -1107,6 +1139,36 @@ export default function App() {
                 </p>
               </div>
 
+              {activeSimId && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSimId(null)}
+                    className="btn-secondary py-2 px-3 text-xs"
+                  >
+                    <ChevronLeft size={16} /> Back to labs
+                  </button>
+                  {activeSimId === 'toolface' && <ToolfaceDial />}
+                  {activeSimId === 'trajectory' && <WellboreTrajectory />}
+                  {activeSimId === 'vibration' && <VibrationMonitor />}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sim = simLabCatalog.find(s => s.id === activeSimId);
+                      if (sim) {
+                        setView('curriculum');
+                        setCurrentSectionId(sim.sectionId);
+                        setActiveSimId(null);
+                      }
+                    }}
+                    className="w-full btn-primary"
+                  >
+                    Open related module
+                  </button>
+                </div>
+              )}
+
+              {!activeSimId && (
               <div className="grid gap-3">
                 {simLabCatalog.map((sim) => {
                   const Icon = sim.icon;
@@ -1119,6 +1181,11 @@ export default function App() {
                         if (locked) {
                           setView('curriculum');
                           setCurrentSectionId(null);
+                          return;
+                        }
+                        // Free sims run inline; pro sims jump into module content
+                        if (sim.isFree && (sim.id === 'toolface' || sim.id === 'trajectory' || sim.id === 'vibration')) {
+                          setActiveSimId(sim.id);
                           return;
                         }
                         setView('curriculum');
@@ -1147,6 +1214,7 @@ export default function App() {
                   );
                 })}
               </div>
+              )}
 
               {!hasPurchased && (
                 <div className="paywall-card space-y-4">
@@ -1190,6 +1258,20 @@ export default function App() {
 
               {user ? (
                 <div className="space-y-8">
+                                    <div className="grid grid-cols-3 gap-3">
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display text-emerald-400">{results.filter(r => r.score >= 80).length}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Modules mastered</p>
+                    </div>
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display">{results.length}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Quizzes taken</p>
+                    </div>
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display">{badges.length}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Badges</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-4 p-5 surface-card">
                     <img 
                       src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} 
@@ -1267,7 +1349,17 @@ export default function App() {
                     </div>
                     {results.some(r => r.sectionId === 'section-15' && r.score >= 80) ? (
                       <button 
-                        onClick={() => setView('certification')}
+                        onClick={() => {
+                          setView('certification');
+                          if (user?.email && !certEmailSent) {
+                            setCertEmailSent(true);
+                            void requestCertificateEmail({
+                              uid: user.uid,
+                              email: user.email,
+                              displayName: user.displayName,
+                            });
+                          }
+                        }}
                         className="w-full p-4 surface-card flex items-center gap-4 border border-emerald-500/25 bg-emerald-500/10"
                       >
                         <div className="w-10 h-10 bg-emerald-500/100 rounded-xl flex items-center justify-center text-white shadow-lg">
