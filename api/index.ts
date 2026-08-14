@@ -507,7 +507,7 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
-      success_url: `${origin}/?payment=success`,
+      success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?payment=cancel`,
       customer_email: userEmail,
       metadata: { userId: userId },
@@ -515,6 +515,62 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
     res.json({ id: session.id, url: session.url });
   } catch (error: any) {
     console.error("Stripe Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+}, 'post');
+
+// Client-side fallback when webhook is delayed/missing: confirm paid Checkout session and unlock user
+handleApiRoute("/confirm-checkout-session", async (req, res) => {
+  try {
+    const { sessionId, userId } = req.body || {};
+    if (!sessionId || typeof sessionId !== "string" || !userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "sessionId and userId are required" });
+    }
+
+    const stripeInstance = getStripe();
+    const session = await stripeInstance.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).json({ error: "Payment not completed", payment_status: session.payment_status });
+    }
+
+    const metaUserId = session.metadata?.userId;
+    if (metaUserId && metaUserId !== userId) {
+      return res.status(403).json({ error: "Session does not belong to this user" });
+    }
+
+    const db = getFirestore();
+    await db.collection("users").doc(userId).set({
+      hasPurchased: true,
+      purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripeSessionId: session.id,
+      platform: "web",
+    }, { merge: true });
+
+    try {
+      if (isEmailConfigured()) {
+        const userSnap = await db.collection("users").doc(userId).get();
+        const email = userSnap.data()?.email || session.customer_details?.email || session.customer_email;
+        if (email && !userSnap.data()?.purchaseEmailSent) {
+          const mail = await sendPurchaseEmail({
+            to: email,
+            name: userSnap.data()?.displayName || null,
+          });
+          if (mail.ok) {
+            await db.collection("users").doc(userId).set({
+              purchaseEmailSent: true,
+              purchaseEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+          }
+        }
+      }
+    } catch (mailErr: any) {
+      console.error("confirm-checkout purchase email failed (non-fatal):", mailErr?.message || mailErr);
+    }
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error("confirm-checkout-session error:", error);
     res.status(500).json({ error: error.message });
   }
 }, 'post');

@@ -190,7 +190,10 @@ export default function App() {
           console.log("Stripe Key set to:", data.stripePublishableKey);
         } else {
           console.error("The server returned an empty or invalid Stripe key.");
-          setPurchaseError("Stripe keys missing on server. Check AI Studio Secrets.");
+          // Native apps use Google Play / App Store — Stripe keys are only required on web
+          if (!isNative()) {
+            setPurchaseError("Stripe is not configured on the server yet. Web unlock needs Stripe keys in Vercel.");
+          }
         }
         
         if (data.serverTime) {
@@ -221,24 +224,54 @@ export default function App() {
     return hasKey;
   }, [stripePubKey]);
 
-  // Handle payment success from URL
+  // Web needs Stripe; Android/iOS use Play Billing / App Store (cordova-plugin-purchase)
+  const canPurchase = isNative() || isStripeConfigured;
+
+  // Handle payment success from URL (Stripe Checkout return)
   useEffect(() => {
     console.log("Stripe Configuration Status:", {
       keyFound: !!stripePubKey,
       keyLength: stripePubKey?.length || 0,
-      isConfigured: isStripeConfigured
+      isConfigured: isStripeConfigured,
+      canPurchase,
+      isNative: isNative(),
     });
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
-      // Access is handled by Firebase listener, but we can show a toast here if we wanted
-      // Clean up URL
+      const sessionId = params.get('session_id');
+      // Fallback unlock if webhook is slow/missing: confirm session with API
+      if (sessionId && user?.uid) {
+        httpClient(getApiUrl('/api/confirm-checkout-session'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, userId: user.uid }),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              console.warn('confirm-checkout-session failed', data);
+            } else {
+              console.log('Checkout confirmed; hasPurchased should update via Firestore');
+            }
+          })
+          .catch((err) => console.warn('confirm-checkout-session error', err));
+      }
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [user?.uid, stripePubKey, isStripeConfigured, canPurchase]);
 
   const handlePurchase = async () => {
     if (!user) {
       login();
+      return;
+    }
+
+    if (!canPurchase) {
+      setPurchaseError(
+        isNative()
+          ? 'In-app purchases are not ready. Check Google Play product setup.'
+          : 'Stripe is not configured. Add STRIPE_SECRET_KEY and VITE_STRIPE_PUBLISHABLE_KEY in Vercel.'
+      );
       return;
     }
 
@@ -900,7 +933,7 @@ export default function App() {
                             
                             <button 
                               onClick={handlePurchase}
-                              disabled={isPurchasing || !isStripeConfigured}
+                              disabled={isPurchasing || !canPurchase}
                               className="btn-primary disabled:cursor-not-allowed"
                             >
                               {isPurchasing ? (
@@ -908,7 +941,7 @@ export default function App() {
                               ) : (
                                 <CreditCard size={20} />
                               )}
-                              {isPurchasing ? 'Processing...' : (!isStripeConfigured ? 'Not Configured' : 'Unlock Now')}
+                              {isPurchasing ? 'Processing...' : (!canPurchase ? 'Not Configured' : (isNative() ? 'Unlock with Play' : 'Unlock Now'))}
                             </button>
                           </div>
                         </div>
@@ -1063,10 +1096,10 @@ export default function App() {
                     </p>
                     <button
                       onClick={handlePurchase}
-                      disabled={isPurchasing || !isStripeConfigured}
+                      disabled={isPurchasing || !canPurchase}
                       className="w-full btn-primary"
                     >
-                      {isPurchasing ? 'Processing…' : 'Unlock full access — $49'}
+                      {isPurchasing ? 'Processing…' : (isNative() ? 'Unlock with Play — $49' : 'Unlock full access — $49')}
                     </button>
                   </div>
                 )}
@@ -1252,11 +1285,11 @@ export default function App() {
                     </div>
                     <button
                       onClick={handlePurchase}
-                      disabled={isPurchasing || !isStripeConfigured}
+                      disabled={isPurchasing || !canPurchase}
                       className="btn-primary disabled:cursor-not-allowed"
                     >
                       {isPurchasing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <CreditCard size={18} />}
-                      {isPurchasing ? 'Processing…' : 'Unlock'}
+                      {isPurchasing ? 'Processing…' : (isNative() ? 'Play Unlock' : 'Unlock')}
                     </button>
                   </div>
                 </div>
