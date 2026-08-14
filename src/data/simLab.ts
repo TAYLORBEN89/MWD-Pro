@@ -25,7 +25,7 @@ export type SimLabItem = {
   icon: LucideIcon;
 };
 
-const LAB_COVER_VERSION = 'v4';
+const LAB_COVER_VERSION = 'v5';
 
 export function getSimLabCover(id: string): string {
   return `/labs/${id}.jpg?${LAB_COVER_VERSION}`;

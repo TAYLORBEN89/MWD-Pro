@@ -129,7 +129,15 @@ export const ToolArchitecture: React.FC = () => {
   const selected = MODULES.find((m) => m.id === id)!;
 
   return (
-    <div className="instrument space-y-3">
+    <div className="instrument space-y-3 relative overflow-hidden">
+      <img
+        src="/labs/metal-texture.jpg"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.14]"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/55" />
+
+      <div className="relative">
       <div className="instrument-header mb-0">
         <div className="instrument-title-row">
           <div className="instrument-icon">
@@ -140,32 +148,37 @@ export const ToolArchitecture: React.FC = () => {
             <p className="instrument-subtitle">6¾ in motor MWD string · bit to NMDC</p>
           </div>
         </div>
-        <span className="instrument-chip">Schematic</span>
+        <span className="instrument-chip">{selected.short}</span>
       </div>
 
-      <div className="flex gap-2 rounded-xl border border-white/10 bg-[#07080a] p-2">
-        <svg viewBox="0 0 88 168" className="w-[5.5rem] shrink-0 h-[168px]" aria-hidden="true">
-          <rect x="28" y="6" width="32" height="156" rx="15" fill="#111827" stroke="#27272a" />
-          {MODULES.map((m) => (
-            <rect
-              key={m.id}
-              x="32"
-              y={m.y}
-              width="24"
-              height={m.h - 1}
-              rx="3"
-              fill={m.id === id ? m.fill : '#27272a'}
-              stroke={m.id === id ? '#e4e4e7' : 'transparent'}
-              className="cursor-pointer"
-              onClick={() => setId(m.id)}
-            />
-          ))}
-          <text x="44" y="166" textAnchor="middle" fill="#52525b" fontSize="7">
-            uphole →
-          </text>
-        </svg>
+      <div className="mt-3 flex gap-2 rounded-xl border border-white/10 bg-[#07080a]/80 overflow-hidden">
+        <div className="relative w-[5.75rem] shrink-0 h-[176px]">
+          <img
+            src="/labs/architecture-well.jpg"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-[center_20%]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-[#07080a]/90" />
+          <svg viewBox="0 0 88 168" className="absolute inset-0 h-full w-full">
+            {MODULES.map((m) => (
+              <rect
+                key={m.id}
+                x="18"
+                y={m.y}
+                width="52"
+                height={m.h - 1}
+                rx="3"
+                fill={m.id === id ? 'rgba(16,185,129,0.28)' : 'transparent'}
+                stroke={m.id === id ? '#34d399' : 'rgba(255,255,255,0.08)'}
+                strokeWidth={m.id === id ? 1.6 : 0.6}
+                className="cursor-pointer"
+                onClick={() => setId(m.id)}
+              />
+            ))}
+          </svg>
+        </div>
 
-        <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex-1 min-w-0 space-y-2 p-2">
           <div className="flex flex-wrap gap-1">
             {MODULES.map((m) => (
               <button
@@ -188,7 +201,7 @@ export const ToolArchitecture: React.FC = () => {
         </div>
       </div>
 
-      <ul className="space-y-1.5">
+      <ul className="mt-3 space-y-1.5">
         {selected.facts.map((fact) => (
           <li key={fact} className="text-[12px] text-zinc-300 leading-relaxed pl-3 border-l border-emerald-500/40">
             {fact}
@@ -196,13 +209,14 @@ export const ToolArchitecture: React.FC = () => {
         ))}
       </ul>
 
-      <div className="instrument-tip">
+      <div className="instrument-tip mt-3">
         <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
         <p>
           This is a typical land motor string, not a vendor cutaway. Resistivity and density, when run, sit
           above gamma. EM and rotary-steerable BHAs change the order — the rule that does not change is
           magnetometers live in non-mag metal, away from steel.
         </p>
+      </div>
       </div>
     </div>
   );
