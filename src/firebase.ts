@@ -39,12 +39,13 @@ const firebaseParams = {
 const app = initializeApp(firebaseParams);
 export const auth = getAuth(app);
 
-// Initialize Firestore with explicit database ID
+// Initialize Firestore (default DB unless a named database ID is configured)
 const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId;
-
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, databaseId);
+const firestoreSettings = { experimentalForceLongPolling: true as const };
+export const db =
+  !databaseId || databaseId === '(default)'
+    ? initializeFirestore(app, firestoreSettings)
+    : initializeFirestore(app, firestoreSettings, databaseId);
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth Helpers
