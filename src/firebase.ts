@@ -23,18 +23,23 @@ import {
   serverTimestamp,
   getDocFromServer
 } from 'firebase/firestore';
-// Import the Firebase configuration
+// Public Firebase identifiers live in the committed applet config.
+// The browser API key is not committed — GitHub secret scanning flags it.
+// Set VITE_FIREBASE_API_KEY in .env / Vercel.
 import firebaseConfig from '../firebase-applet-config.json';
 
-// Initialize Firebase using environment variables with fallback to config file
 const firebaseParams = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
   appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfig.appId
 };
+
+if (!firebaseParams.apiKey || !firebaseParams.projectId || !firebaseParams.appId) {
+  throw new Error('Missing Firebase client config. Set VITE_FIREBASE_API_KEY.');
+}
 
 const app = initializeApp(firebaseParams);
 export const auth = getAuth(app);
