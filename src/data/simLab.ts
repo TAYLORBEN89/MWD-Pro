@@ -68,7 +68,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'magnetic',
     title: 'Magnetic Interference',
-    subtitle: 'See distortion on survey vectors',
+    subtitle: 'QC the field, reject the trash',
     isFree: false,
     sectionId: 'section-5',
     icon: Gauge,

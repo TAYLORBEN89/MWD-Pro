@@ -446,8 +446,8 @@ export const VibrationMonitor: React.FC = () => {
     { key: 'torsional', name: 'Torsional', sub: 'Stick-slip', value: live.torsional, path: toPath(history.current.map((s) => s.torsional)) },
   ];
 
-  const shakeX = (live.lateral - 1) * 0.55;
-  const shakeY = (live.axial - 1) * 0.45;
+  const shakeX = clamp((live.lateral - 1) * 0.28, -2.1, 2.1);
+  const shakeY = clamp((live.axial - 1) * 0.22, -2.1, 2.1);
   const spin = 18 + live.torsional * 16;
   const healthColor = health < 35 ? '#ef4444' : health < 65 ? '#f59e0b' : '#10b981';
   const lastSurvey = surveys[surveys.length - 1];
@@ -487,9 +487,9 @@ export const VibrationMonitor: React.FC = () => {
         <div className="min-w-0">
           <p className="label-caps text-zinc-500">Sim lab</p>
           <h3 className="instrument-title mt-1">Vibration Monitor</h3>
-          <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">{level.brief}</p>
+          <p className="mt-1 min-h-[3.25rem] text-[12px] leading-relaxed text-zinc-400">{level.brief}</p>
         </div>
-        <span className={`instrument-chip shrink-0 ${chip.cls}`}>
+        <span className={`instrument-chip w-[6.6rem] shrink-0 justify-center whitespace-nowrap ${chip.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
           {chip.label}
         </span>
@@ -509,14 +509,14 @@ export const VibrationMonitor: React.FC = () => {
       </div>
 
       <div className="flex gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#07080a] p-2">
-        <svg viewBox="0 0 72 148" className="h-[148px] w-16 shrink-0" aria-hidden="true">
+        <svg viewBox="0 0 72 148" className="h-[148px] w-16 shrink-0 overflow-hidden" aria-hidden="true">
           <rect x="18" y="6" width="36" height="136" rx="18" fill="#111827" stroke="#27272a" />
           <rect x="22" y="10" width="28" height="128" rx="14" fill="#09090b" />
-          <g style={{ transform: `translate(${shakeX.toFixed(1)}px, ${shakeY.toFixed(1)}px)`, transformOrigin: '36px 74px' }}>
+          <g transform={`translate(${shakeX.toFixed(1)} ${shakeY.toFixed(1)})`}>
             <rect x="30" y="16" width="12" height="18" rx="2" fill="#52525b" />
             <rect x="28" y="36" width="16" height="28" rx="3" fill="#10b981" opacity="0.85" />
             <rect x="30" y="66" width="12" height="22" rx="2" fill="#3f3f46" />
-            <g style={{ transform: `rotate(${(tRef.current * spin) % 360}deg)`, transformOrigin: '36px 108px' }}>
+            <g transform={`rotate(${((tRef.current * spin) % 360).toFixed(1)} 36 108)`}>
               <circle cx="36" cy="108" r="11" fill="#a1a1aa" />
               <path d="M36 98 L39 108 L36 118 L33 108 Z" fill="#18181b" />
             </g>
@@ -535,7 +535,7 @@ export const VibrationMonitor: React.FC = () => {
                   <p className="text-[10px] font-semibold leading-none text-zinc-200">{ch.name}</p>
                   <p className="text-[9px] text-zinc-500">{ch.sub}</p>
                 </div>
-                <svg viewBox={`0 0 ${TRACE_W} ${TRACE_H}`} className="h-9 flex-1 overflow-visible" preserveAspectRatio="none">
+                <svg viewBox={`0 0 ${TRACE_W} ${TRACE_H}`} className="h-9 flex-1 overflow-hidden" preserveAspectRatio="none">
                   <line x1="0" x2={TRACE_W} y1={TRACE_H * 0.5} y2={TRACE_H * 0.5} stroke="rgba(255,255,255,0.06)" />
                   <path d={ch.path} fill="none" stroke={sev.bar} strokeWidth="1.7" strokeLinejoin="round" />
                 </svg>
@@ -650,14 +650,17 @@ export const VibrationMonitor: React.FC = () => {
         </button>
       </div>
 
-      {stationFlash && lastSurvey && (
-        <p className={`font-mono text-[11px] tabular-nums ${lastSurvey.pass ? 'text-emerald-300' : 'text-amber-300'}`}>
-          Station {lastSurvey.md.toFixed(0)} · Ax {lastSurvey.axial.toFixed(1)} Lat {lastSurvey.lateral.toFixed(1)} Tor{' '}
-          {lastSurvey.torsional.toFixed(1)} · {lastSurvey.pass ? 'QC pass' : 'QC fail'}
-        </p>
-      )}
+      <p
+        className={`min-h-[1.15rem] font-mono text-[11px] tabular-nums ${
+          lastSurvey?.pass ? 'text-emerald-300' : 'text-amber-300'
+        } ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}
+      >
+        {lastSurvey
+          ? `Station ${lastSurvey.md.toFixed(0)} · Ax ${lastSurvey.axial.toFixed(1)} Lat ${lastSurvey.lateral.toFixed(1)} Tor ${lastSurvey.torsional.toFixed(1)} · ${lastSurvey.pass ? 'QC pass' : 'QC fail'}`
+          : 'Station'}
+      </p>
 
-      <p className="text-[12px] leading-relaxed text-zinc-400">{coach}</p>
+      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-zinc-400">{coach}</p>
 
       {phase === 'debrief' && (
         <div className="space-y-2">
