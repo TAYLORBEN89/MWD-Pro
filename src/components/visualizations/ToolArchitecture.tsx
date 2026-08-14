@@ -6,51 +6,65 @@ type Spacing = 'standard' | 'short';
 
 const ORDER: ModuleId[] = ['nmdc', 'gamma', 'directional', 'battery', 'pulser', 'motor', 'bit'];
 
-const META: Record<
-  ModuleId,
-  { name: string; short: string; od: string; note: string }
-> = {
+const COLOR: Record<ModuleId, string> = {
+  nmdc: '#e7e5e4',
+  gamma: '#c084fc',
+  directional: '#60a5fa',
+  battery: '#fbbf24',
+  pulser: '#2dd4bf',
+  motor: '#fb923c',
+  bit: '#d4d4d8',
+};
+
+const META: Record<ModuleId, { name: string; short: string; od: string; lede: string; body: string }> = {
   bit: {
     name: 'PDC bit',
     short: 'Bit',
     od: '8½ in',
-    note: 'Not MWD. Everything you survey or log sits above this. Sensor-to-bit is the number you subtract from bit depth.',
+    lede: 'The only thing that cuts rock.',
+    body: 'Not a sensor. Every survey and gamma sample sits above this face. Sensor-to-bit is what you subtract from the driller’s bit depth before you land a curve or pick a bed.',
   },
   motor: {
     name: 'Mud motor',
     short: 'Motor',
     od: '6¾ in',
-    note: 'PDM + bent housing. Steel. This is the interferer the magnetometers have to live away from.',
+    lede: 'Twenty-eight feet of steel under the magnets.',
+    body: 'PDM with a bent housing. Slide points the bend; rotate averages it. This is the interferer. Magnetometers cannot sit against it — that is why the NMDC exists.',
   },
   pulser: {
     name: 'Positive pulser',
     short: 'Pulser',
     od: '6¾ in',
-    note: 'Poppet restricts the bore. Standpipe sees a 70–120 psi tick. Wear here looks like “bad decode.”',
+    lede: 'The tool’s voice in the standpipe.',
+    body: 'A poppet closes the bore for a few milliseconds. Surface should see a 70–120 psi tick at 0.5–3 bit/s. After a long abrasive run, weak pulses are a worn orifice, not a decoder bug.',
   },
   battery: {
     name: 'Lithium pack',
     short: 'Battery',
     od: '6¾ in',
-    note: 'Primary cells. Voltage and life fall off a cliff above ~150 °C. Pulser solenoid is the hog.',
+    lede: 'Power for the board and the solenoid.',
+    body: 'Primary cells. The pulser solenoid is the hog. Above ~150 °C life falls off a cliff. Voltage sag shows up as slow or missing pulses before anything else dies.',
   },
   directional: {
-    name: 'Directional',
+    name: 'Directional package',
     short: 'Dir',
     od: '6¾ in',
-    note: 'Triaxial accel + fluxgate. Must sit in non-mag metal. GTF when you are out of vertical; MTF near 0°.',
+    lede: 'Gravity and magnetic field, six axes.',
+    body: 'Three accelerometers give inclination and gravity toolface. Three fluxgates give azimuth and magnetic toolface. Use MTF near vertical; switch to GTF once you leave the vertical. Must live in non-mag metal.',
   },
   gamma: {
-    name: 'Gamma',
+    name: 'Gamma detector',
     short: 'GR',
     od: '6¾ in',
-    note: 'Scintillator. API units. Correlate on TVD — this crystal is a stand behind the bit.',
+    lede: 'API counts, a stand behind the bit.',
+    body: 'Scintillation crystal and photomultiplier. Shale typically 80–150 API; clean sand and lime sit much lower. The crystal is looking at rock you drilled a stand ago — correlate on TVD, never raw bit depth.',
   },
   nmdc: {
-    name: 'NMDC',
+    name: 'Non-magnetic collar',
     short: 'NMDC',
     od: '6¾ in',
-    note: 'Monel / non-mag. Spacing above the magnets is what keeps Btot on the IGRF. Short it and the first rotating survey dies.',
+    lede: 'The only reason azimuth is honest.',
+    body: 'Monel or non-mag steel. Length above the magnets keeps Btot on the IGRF. Short it to save BHA length and the first rotating survey fails. Gravity will still pass. Magnetic will not.',
   },
 };
 
@@ -85,15 +99,16 @@ function JointIcon({
   first: boolean;
   last: boolean;
 }) {
-  const stroke = on ? '#34d399' : kind === 'nmdc' ? '#a8a29e' : '#71717a';
-  const glow = on ? 'drop-shadow(0 0 6px rgba(52,211,153,0.75))' : 'none';
+  const stroke = COLOR[kind];
+  const glow = on ? `drop-shadow(0 0 7px ${stroke})` : 'none';
+  const opacity = on ? 1 : 0.42;
   const top = first ? 10 : 2;
   const bot = last ? 88 : 98;
 
   return (
-    <span className="relative block h-full w-full">
+    <span className="relative block h-full w-full" style={{ opacity }}>
       <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
-        <g fill="none" stroke={stroke} strokeWidth="1.6" style={{ filter: glow }}>
+        <g fill="none" stroke={stroke} strokeWidth="1.7" style={{ filter: glow }}>
           <path
             d={`M18 ${top} ${first ? 'Q18 2 28 2 Q38 2 38' : 'L38'} ${top} L38 ${bot} ${last ? 'Q38 98 28 98 Q18 98 18' : 'L18'} ${bot} Z`}
             vectorEffect="non-scaling-stroke"
@@ -136,28 +151,22 @@ export const ToolArchitecture: React.FC = () => {
   const magOk = ft.nmdc >= 20;
   const selected = META[id];
   const selectedFt = ft[id];
+  const color = COLOR[id];
 
   const laid = useMemo(
     () =>
       ORDER.map((key) => ({
         key,
         len: ft[key],
-        px: Math.max(72, ft[key] * 12),
+        px: Math.max(key === id ? 168 : 72, ft[key] * 12),
       })),
-    [ft]
+    [ft, id]
   );
 
-  const tip = !magOk
-    ? 'You shorted the NMDC to save BHA length. Gravity will still pass. Magnetic will not. The first rotating survey is already dead.'
-    : id === 'directional'
-      ? `Dir sits ${dirStb.toFixed(0)} ft behind the bit. Subtract that from bit depth before you land a survey or call a landing.`
-      : id === 'gamma'
-        ? `GR is ${grStb.toFixed(0)} ft behind the bit. The log is looking at rock you drilled a stand ago.`
-        : id === 'motor'
-          ? 'Twenty-eight feet of steel under the magnets. That is why the NMDC exists. Not optional decoration.'
-          : id === 'pulser'
-            ? 'If pulses die after 80 abrasive hours, look at the orifice before you blame the decoder.'
-            : selected.note;
+  const body =
+    !magOk && (id === 'nmdc' || id === 'directional')
+      ? 'You shorted the NMDC to save BHA length. Gravity will still pass. Magnetic will not. The first rotating survey is already dead.'
+      : selected.body;
 
   return (
     <div className="space-y-3">
@@ -204,12 +213,13 @@ export const ToolArchitecture: React.FC = () => {
       <div>
         {laid.map((row, i) => {
           const on = row.key === id;
+          const c = COLOR[row.key];
           return (
             <button
               key={row.key}
               type="button"
               onClick={() => setId(row.key)}
-              className="flex w-full items-center gap-0 text-left"
+              className="flex w-full items-stretch text-left"
               style={{ height: row.px }}
             >
               <span className="relative h-full w-16 shrink-0">
@@ -221,43 +231,56 @@ export const ToolArchitecture: React.FC = () => {
                 />
               </span>
 
-              <span className="flex min-w-0 flex-1 items-center pl-1">
+              <span className="relative min-w-0 flex-1">
                 <AnimatePresence mode="wait">
                   {on && (
                     <motion.span
                       key={row.key}
-                      className="flex min-w-0 flex-1 items-start"
+                      className="absolute inset-0"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.15 }}
                     >
-                      <motion.span
-                        className="mt-2 h-px w-7 shrink-0 origin-left"
-                        style={{
-                          background: 'linear-gradient(90deg, #34d399, rgba(52,211,153,0.15))',
-                          boxShadow: '0 0 8px rgba(52,211,153,0.8)',
-                        }}
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: 1 }}
-                        exit={{ scaleX: 0 }}
-                        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                      <motion.span
-                        className="min-w-0 flex-1 pl-2"
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 6 }}
-                        transition={{ delay: 0.22, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      <svg
+                        className="absolute inset-0 h-full w-full"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                        aria-hidden
                       >
-                        <span className="block text-[13px] font-semibold text-emerald-300">
+                        <motion.path
+                          d="M 0 50 H 14 V 10 H 58 V 26"
+                          fill="none"
+                          stroke={c}
+                          strokeWidth="1.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          vectorEffect="non-scaling-stroke"
+                          style={{ filter: `drop-shadow(0 0 5px ${c})` }}
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          exit={{ pathLength: 0 }}
+                          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                        />
+                      </svg>
+                      <motion.span
+                        className="absolute left-[46%] right-0 top-[28%]"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ delay: 0.42, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <span className="block text-[13px] font-semibold" style={{ color: c }}>
                           {selected.name}
                         </span>
                         <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-zinc-400">
                           {selected.od} · {selectedFt} ft · {fromBit(id, ft).toFixed(0)} ft from bit
                         </span>
-                        <span className="mt-1.5 block text-[12px] leading-relaxed text-zinc-300">
-                          {tip}
+                        <span className="mt-1 block text-[11px] font-medium text-zinc-200">
+                          {selected.lede}
+                        </span>
+                        <span className="mt-1 block text-[12px] leading-relaxed text-zinc-400">
+                          {body}
                         </span>
                       </motion.span>
                     </motion.span>
