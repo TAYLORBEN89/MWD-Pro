@@ -507,17 +507,19 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
     const origin = req.headers.origin || `https://${req.headers.host}`;
     // Classic Checkout: disable Managed Payments so existing products work without forced tax-code setup.
     // Re-enable managed payments later once product tax_codes are configured in Stripe Dashboard.
-    const session = await stripeInstance.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams & {
+      managed_payments?: { enabled: boolean };
+    } = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
       payment_method_types: ["card"],
-      // @ts-expect-error managed_payments is supported by Stripe API; older stripe types may omit it
       managed_payments: { enabled: false },
       success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?payment=cancel`,
       customer_email: userEmail,
       metadata: { userId: userId },
-    });
+    };
+    const session = await stripeInstance.checkout.sessions.create(sessionParams as Stripe.Checkout.SessionCreateParams);
     res.json({ id: session.id, url: session.url });
   } catch (error: any) {
     console.error("Stripe Error:", error);
