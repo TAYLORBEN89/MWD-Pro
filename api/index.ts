@@ -503,8 +503,8 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
     const stripeInstance = getStripe();
     const priceId = await getOrCreateMwdProduct();
     const origin = req.headers.origin || `https://${req.headers.host}`;
+    // Do not pass payment_method_types when Stripe Managed Payments is enabled (default on newer accounts).
     const session = await stripeInstance.checkout.sessions.create({
-      payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
       success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
