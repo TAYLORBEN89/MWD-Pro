@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, Component, ReactNode, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import ReactMarkdown from 'react-markdown';
 import { 
   ToolfaceDial, 
   WellboreTrajectory, 
@@ -54,6 +53,7 @@ import { payments } from './lib/payments';
 import { httpClient } from './lib/httpClient';
 import { Capacitor } from '@capacitor/core';
 import { requestCertificateEmail } from './lib/emailClient';
+import { LessonReader } from './components/LessonReader';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -529,13 +529,11 @@ export default function App() {
                   <div className="space-y-6">
                     <h2 className="text-2xl title-display leading-tight">{currentSection.title}</h2>
                     
-                    <div className="surface-card p-6">
-                      <div className="prose-mwd">
-                        <ReactMarkdown>{currentSection.content}</ReactMarkdown>
-                      </div>
+                    <LessonReader content={currentSection.content} />
 
+                    <div className="space-y-10 pt-2">
                       {currentSection.id === 'section-2' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Interactive Vibration Monitor</h3>
                           <p className="body-muted">Simulate different downhole vibration and shock regimes to understand their impact on tool health.</p>
                           <VibrationMonitor />
@@ -543,7 +541,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-3' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Interactive Tool Architecture</h3>
                           <p className="body-muted">Explore the internal components of a professional MWD tool string.</p>
                           <ToolArchitecture />
@@ -551,7 +549,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-4' && (
-                        <div className="mt-12 space-y-12">
+                        <div className="mt-6 space-y-8">
                           <div className="space-y-4">
                             <h3 className="text-lg title-display">Interactive Toolface Dial</h3>
                             <p className="body-muted">Practice orienting the tool using Gravity and Magnetic references.</p>
@@ -567,7 +565,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-5' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Magnetic Interference Simulator</h3>
                           <p className="body-muted">Visualize how axial and cross-axial magnetic distortion affects your survey vector.</p>
                           <MagneticInterference />
@@ -575,7 +573,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-6' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Real-Time Formation Log</h3>
                           <p className="body-muted">Practice identifying lithology changes using Gamma Ray API units as you "drill" downhole.</p>
                           <FormationLog />
@@ -583,7 +581,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-7' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Mud Pulse Telemetry Simulator</h3>
                           <p className="body-muted">Simulate binary encoding and decoding of pressure pulses in the mud column.</p>
                           <MudPulseSimulator />
@@ -591,7 +589,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-8' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">MWD Operational Workflow</h3>
                           <p className="body-muted">Master the step-by-step procedures of an MWD field technician from tool prep to drilling.</p>
                           <RigWorkflow />
@@ -599,7 +597,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-9' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Failure Diagnostic Lab</h3>
                           <p className="body-muted">Analyze real-time symptoms and downhole data to diagnose common MWD failure modes.</p>
                           <FailureDiagnosis />
@@ -607,7 +605,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-10' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">3D Steering Simulator</h3>
                           <p className="body-muted">Experience directional control by adjusting toolface and switching between sliding and rotating modes.</p>
                           <SteeringSimulator />
@@ -615,7 +613,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-11' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Vibration & Dynamics Monitor</h3>
                           <p className="body-muted">Monitor axial, lateral, and torsional vibration to identify downhole dysfunctions like stick-slip and whirl.</p>
                           <VibrationMonitor />
@@ -623,7 +621,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-12' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Geosteering Interpretation</h3>
                           <p className="body-muted">Correlate real-time Gamma Ray logs with offset well data to make steering decisions and stay in-zone.</p>
                           <GeosteeringInterpretation />
@@ -631,7 +629,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-13' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Advanced LWD Sensor Dashboard</h3>
                           <p className="body-muted">Explore advanced formation evaluation logs including Resistivity, Density, and Neutron porosity.</p>
                           <AdvancedLogs />
@@ -639,7 +637,7 @@ export default function App() {
                       )}
 
                       {currentSection.id === 'section-14' && (
-                        <div className="mt-12 space-y-8">
+                        <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Survey Quality Control</h3>
                           <p className="body-muted">Validate survey data by checking G-Total, B-Total, and Dip Angle against expected magnetic models.</p>
                           <SurveyQuality />
