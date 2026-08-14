@@ -165,7 +165,8 @@ export const ToolArchitecture: React.FC = () => {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl">
+      <div>
+        <p className="mb-1 font-mono text-[10px] text-zinc-600">Uphole</p>
         {laid.map((row, i) => {
           const on = row.key === id;
           const monel = row.key === 'nmdc';
@@ -174,46 +175,47 @@ export const ToolArchitecture: React.FC = () => {
               key={row.key}
               type="button"
               onClick={() => setId(row.key)}
-              className="relative flex w-full items-center"
+              className="flex w-full items-stretch gap-3"
               style={{ height: row.px }}
             >
-              <span
-                className="absolute inset-0"
-                style={{
-                  background: monel
-                    ? 'linear-gradient(90deg,#44403c 0%,#d6d3d1 18%,#a8a29e 42%,#57534e 70%,#1c1917 100%)'
-                    : row.key === 'bit'
-                      ? 'linear-gradient(90deg,#52525b 0%,#d4d4d8 30%,#71717a 70%,#27272a 100%)'
-                      : 'linear-gradient(90deg,#3f3f46 0%,#c4c4cc 16%,#71717a 45%,#3f3f46 78%,#18181b 100%)',
-                  boxShadow: on ? 'inset 0 0 0 2px #34d399' : 'inset 0 1px 0 rgba(255,255,255,0.12)',
-                }}
-              />
-              <span
-                className="pointer-events-none absolute inset-y-3 left-[18%] right-[18%] rounded-sm"
-                style={{ background: 'linear-gradient(90deg,#09090b,#3f3f46,#09090b)', opacity: 0.35 }}
-              />
-              {row.key === 'pulser' && (
-                <span className="pointer-events-none absolute left-1/2 h-2.5 w-24 -translate-x-1/2 rounded-sm bg-black/70" />
-              )}
-              {row.key === 'directional' && (
-                <span className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 gap-6">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-                </span>
-              )}
-              <span className="relative z-10 px-4 text-left">
-                <span className="block text-[13px] font-semibold text-zinc-50">{META[row.key].short}</span>
-                <span className="block font-mono text-[11px] text-zinc-300">{row.len} ft</span>
+              <span className="relative w-16 shrink-0">
+                <span
+                  className="absolute inset-y-0 left-1/2 w-[3.15rem] -translate-x-1/2"
+                  style={{
+                    borderRadius:
+                      i === 0 ? '12px 12px 2px 2px' : i === laid.length - 1 ? '2px 2px 14px 14px' : 2,
+                    background: monel
+                      ? 'linear-gradient(90deg,#57534e 0%,#d6d3d1 28%,#78716c 55%,#1c1917 100%)'
+                      : row.key === 'bit'
+                        ? 'linear-gradient(90deg,#52525b 0%,#a1a1aa 35%,#3f3f46 100%)'
+                        : 'linear-gradient(90deg,#3f3f46 0%,#a1a1aa 22%,#52525b 50%,#18181b 100%)',
+                    boxShadow: on ? '0 0 0 2px #34d399' : 'inset 5px 0 7px rgba(255,255,255,0.1)',
+                  }}
+                />
+                <span
+                  className="pointer-events-none absolute inset-y-2 left-1/2 w-2.5 -translate-x-1/2 rounded-full"
+                  style={{ background: 'linear-gradient(90deg,#09090b,#27272a,#09090b)', opacity: 0.55 }}
+                />
+                {row.key === 'pulser' && (
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-8 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-black/80" />
+                )}
+                {row.key === 'directional' && (
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  </span>
+                )}
               </span>
-              {i === 0 && (
-                <span className="relative z-10 ml-auto pr-4 font-mono text-[10px] text-zinc-400">uphole</span>
-              )}
-              {row.key === 'bit' && (
-                <span className="relative z-10 ml-auto pr-4 font-mono text-[10px] text-zinc-400">bit</span>
-              )}
+              <span className="flex min-w-0 flex-1 flex-col justify-center text-left">
+                <span className={`text-[13px] font-semibold ${on ? 'text-emerald-300' : 'text-zinc-100'}`}>
+                  {META[row.key].short}
+                </span>
+                <span className="font-mono text-[11px] text-zinc-500">{row.len} ft</span>
+              </span>
             </button>
           );
         })}
+        <p className="mt-1 font-mono text-[10px] text-zinc-600">Bit</p>
       </div>
 
       <p className="flex items-start gap-2 pb-2 text-xs leading-relaxed text-zinc-400">
