@@ -1,4 +1,6 @@
 /** Cover images for module selection cards (in /public/modules). */
+const COVER_VERSION = 'v2'; // bump when replacing assets to bust CDN/browser cache
+
 export const moduleCovers: Record<string, string> = {
   'section-1': '/modules/section-1.jpg',
   'section-2': '/modules/section-2.jpg',
@@ -18,5 +20,6 @@ export const moduleCovers: Record<string, string> = {
 };
 
 export function getModuleCover(sectionId: string): string {
-  return moduleCovers[sectionId] || '/modules/section-1.jpg';
+  const path = moduleCovers[sectionId] || '/modules/section-1.jpg';
+  return `${path}?${COVER_VERSION}`;
 }
