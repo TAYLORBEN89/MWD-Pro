@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw } from 'lucide-react';
 
-type Phase = 'brief' | 'run' | 'station' | 'debrief';
+type Phase = 'run' | 'debrief';
 type Mode = 'slide' | 'rotate';
 type TfRef = 'gtf' | 'mtf';
 type LevelId = 1 | 2 | 3;
@@ -32,7 +32,6 @@ interface Level {
   well: string;
   name: string;
   brief: string;
-  goal: string;
   start: Station;
   planEnd: { md: number; inc: number; azi: number; tvd: number };
   yield: number;
@@ -42,6 +41,7 @@ interface Level {
   tfNoise: number;
   planAzi: number;
   dlsLimit: number;
+  startGtf: number;
 }
 
 const LEVELS: Level[] = [
@@ -49,8 +49,7 @@ const LEVELS: Level[] = [
     id: 1,
     well: 'Mustang 14-23H',
     name: 'KOP build',
-    brief: '90 ft past KOP on a 1.83° motor. Inclination is 5°. Land 45° at 1,700 ft MD on 90° azimuth. High-side slide. Surveys every 90 ft.',
-    goal: 'Finish inc 43–47°, TVD within 15 ft of plan, peak DLS under 10°/100 ft. Switch to GTF once inc is above ~8°.',
+    brief: 'Land 45° at 1,700 ft MD. High-side slide. Surveys every 90 ft.',
     start: { md: 1210, inc: 5, azi: 90, tvd: 1206, north: 0, east: 18, vs: 18, dls: 0, mode: 'slide' },
     planEnd: { md: 1700, inc: 45, azi: 90, tvd: 1578 },
     yield: 8,
@@ -60,13 +59,13 @@ const LEVELS: Level[] = [
     tfNoise: 1.1,
     planAzi: 90,
     dlsLimit: 10,
+    startGtf: 0,
   },
   {
     id: 2,
     well: 'Mustang 14-23H',
-    name: 'Hold and turn',
-    brief: 'Tangent at 42°. Walk azimuth from 90° to 130° by 2,200 ft MD. Frontier sand walks the bit right when you rotate.',
-    goal: 'Slide near 90° GTF to turn. Rotate only to hold inc. Finish azi 126–134°, inc 40–44°, DLS under 10°/100 ft.',
+    name: 'Hold + turn',
+    brief: 'Hold 42°. Walk azi to 130° by 2,200 ft. Sand walks right on rotate.',
     start: { md: 1780, inc: 42, azi: 90, tvd: 1624, north: 12, east: 210, vs: 210, dls: 3.1, mode: 'rotate' },
     planEnd: { md: 2200, inc: 42, azi: 130, tvd: 1936 },
     yield: 7.5,
@@ -76,13 +75,13 @@ const LEVELS: Level[] = [
     tfNoise: 2,
     planAzi: 110,
     dlsLimit: 10,
+    startGtf: 0,
   },
   {
     id: 3,
     well: 'Cedar Camp 9-4H',
-    name: 'Off-plan recovery',
-    brief: 'Night tour left you 6° under plan with 18° of toolface lag. Surveys are 120 ft apart. Sand walk is live. Do not dogleg the casing.',
-    goal: 'Get back on an 8°/100 ft build. Finish inc within 3° of 50° and TVD within 25 ft. Peak DLS under 12°/100 ft.',
+    name: 'Recovery',
+    brief: '6° under plan, 18° of TF lag, 120 ft surveys. Do not bury DLS.',
     start: { md: 1400, inc: 12, azi: 88, tvd: 1384, north: -4, east: 62, vs: 61, dls: 4.4, mode: 'slide' },
     planEnd: { md: 1880, inc: 50, azi: 90, tvd: 1710 },
     yield: 8.2,
@@ -92,6 +91,7 @@ const LEVELS: Level[] = [
     tfNoise: 3.2,
     planAzi: 90,
     dlsLimit: 12,
+    startGtf: 342,
   },
 ];
 
@@ -109,6 +109,9 @@ function wrap360(d: number) {
 }
 function angDiff(a: number, b: number) {
   return ((a - b + 540) % 360) - 180;
+}
+function hsCommand(ref: TfRef, azi: number) {
+  return ref === 'gtf' ? 0 : wrap360(azi);
 }
 
 function dogleg(i1: number, a1: number, i2: number, a2: number, dmd: number) {
@@ -234,7 +237,7 @@ function notesFor(
   const dAzi = angDiff(last.azi, target.azi);
   if (stuck) {
     out.push(
-      `Stuck-pipe event at ${last.md.toFixed(0)} ft MD. Long slide + high WOB packed cuttings. Score process bucket is zero.`
+      `Stuck-pipe event at ${last.md.toFixed(0)} ft MD. Long slide + high WOB packed cuttings.`
     );
   }
   if (Math.abs(dInc) > 3) {
@@ -246,27 +249,23 @@ function notesFor(
   }
   if (Math.abs(dTvd) > 12) {
     out.push(
-      `TVD ${last.tvd.toFixed(0)} vs plan ${target.tvd.toFixed(0)} (${dTvd >= 0 ? '+' : ''}${dTvd.toFixed(0)} ft). Inc error integrates into TVD through min-curvature.`
+      `TVD ${last.tvd.toFixed(0)} vs plan ${target.tvd.toFixed(0)} (${dTvd >= 0 ? '+' : ''}${dTvd.toFixed(0)} ft).`
     );
   }
   if (Math.abs(dAzi) > 4) {
     out.push(
-      `Azimuth ${dAzi >= 0 ? '+' : ''}${dAzi.toFixed(1)}° off plan ${target.azi.toFixed(1)}°. Right turn is ~90° GTF; left is ~270°. Rotate walk is ${level.walk.toFixed(1)}°/100 ft.`
+      `Azimuth ${dAzi >= 0 ? '+' : ''}${dAzi.toFixed(1)}° off plan ${target.azi.toFixed(1)}°. Right is ~90° GTF.`
     );
   }
   if (peakDls > level.dlsLimit) {
-    out.push(
-      `Peak DLS ${peakDls.toFixed(1)}°/100 ft exceeds the ${level.dlsLimit}°/100 ft casing limit. That is a keyseat / slide-sheet fail.`
-    );
+    out.push(`Peak DLS ${peakDls.toFixed(1)}°/100 ft exceeds the ${level.dlsLimit}°/100 ft limit.`);
   }
   if (tfMeanErr > 22) {
-    out.push(
-      `Mean |toolface error| ${tfMeanErr.toFixed(0)}°. Lead right for reactive torque. High WOB increases left walk of the face.`
-    );
+    out.push(`Mean |toolface error| ${tfMeanErr.toFixed(0)}°. Lead right for reactive torque.`);
   }
   if (!out.length) {
     out.push(
-      `Curve is sendable. Last station MD ${last.md.toFixed(0)}, DLS ${last.dls.toFixed(2)}°/100 ft, inc ${last.inc.toFixed(1)}°, TVD ${last.tvd.toFixed(0)}.`
+      `Curve is sendable. Last station MD ${last.md.toFixed(0)}, DLS ${last.dls.toFixed(2)}°/100 ft.`
     );
   }
   return out;
@@ -302,17 +301,27 @@ function spark(values: number[], w = 72, h = 18) {
     .join(' ');
 }
 
+function pointerTf(el: SVGSVGElement, clientX: number, clientY: number) {
+  const r = el.getBoundingClientRect();
+  const x = clientX - (r.left + r.width / 2);
+  const y = clientY - (r.top + r.height / 2);
+  return wrap360(toDeg(Math.atan2(x, -y)));
+}
+
 export const ToolfaceDial: React.FC = () => {
+  const first = LEVELS[0];
+  const firstRef: TfRef = first.start.inc < 7 ? 'mtf' : 'gtf';
   const [levelId, setLevelId] = useState<LevelId>(1);
   const level = LEVELS[levelId - 1];
-  const [phase, setPhase] = useState<Phase>('brief');
-  const [mode, setMode] = useState<Mode>('slide');
-  const [tfRefMode, setTfRefMode] = useState<TfRef>('gtf');
-  const [cmdTf, setCmdTf] = useState(0);
+  const [phase, setPhase] = useState<Phase>('run');
+  const [playing, setPlaying] = useState(true);
+  const [mode, setMode] = useState<Mode>(first.start.mode);
+  const [tfRefMode, setTfRefMode] = useState<TfRef>(firstRef);
+  const [cmdTf, setCmdTf] = useState(hsCommand(firstRef, first.start.azi));
   const [wob, setWob] = useState(24);
   const [rop, setRop] = useState(120);
-  const [bit, setBit] = useState<Station>(level.start);
-  const [surveys, setSurveys] = useState<Station[]>([level.start]);
+  const [bit, setBit] = useState<Station>(first.start);
+  const [surveys, setSurveys] = useState<Station[]>([first.start]);
   const [peakDls, setPeakDls] = useState(0);
   const [tfErrAcc, setTfErrAcc] = useState(0);
   const [tfErrN, setTfErrN] = useState(0);
@@ -322,24 +331,28 @@ export const ToolfaceDial: React.FC = () => {
   const [stuck, setStuck] = useState(false);
   const [stuckRisk, setStuckRisk] = useState(0);
   const [slideFt, setSlideFt] = useState(0);
-  const [grHist, setGrHist] = useState<number[]>([96]);
-  const [grLive, setGrLive] = useState(96);
-  const [resLive, setResLive] = useState(4);
-  const [contInc, setContInc] = useState(level.start.inc);
-  const [contAzi, setContAzi] = useState(level.start.azi);
+  const [grHist, setGrHist] = useState<number[]>([lithAt(first.start.tvd).gr]);
+  const [grLive, setGrLive] = useState(lithAt(first.start.tvd).gr);
+  const [resLive, setResLive] = useState(lithAt(first.start.tvd).res);
+  const [contInc, setContInc] = useState(first.start.inc);
+  const [contAzi, setContAzi] = useState(first.start.azi);
   const [plotView, setPlotView] = useState<PlotView>('profile');
-  const [actualTf, setActualTf] = useState(0);
+  const [actualTf, setActualTf] = useState(first.startGtf);
+  const [stationFlash, setStationFlash] = useState(false);
 
-  const actualTfR = useRef(0);
-  const cmdR = useRef(0);
-  const modeR = useRef<Mode>('slide');
-  const refR = useRef<TfRef>('gtf');
+  const actualTfR = useRef(first.startGtf);
+  const cmdR = useRef(cmdTf);
+  const modeR = useRef<Mode>(first.start.mode);
+  const refR = useRef<TfRef>(firstRef);
   const wobR = useRef(24);
   const ropR = useRef(120);
   const bitR = useRef(bit);
-  const nextSurvey = useRef(level.start.md + level.surveyEvery);
+  const nextSurvey = useRef(first.start.md + first.surveyEvery);
   const slideFtR = useRef(0);
   const stuckR = useRef(0);
+  const dialRef = useRef<SVGSVGElement>(null);
+  const dragR = useRef(false);
+  const flashTimer = useRef(0);
 
   cmdR.current = cmdTf;
   modeR.current = mode;
@@ -351,11 +364,15 @@ export const ToolfaceDial: React.FC = () => {
   const plan = useMemo(() => buildPlan(level), [level]);
   const targetNow = planAt(plan, bit.md);
 
-  const reset = (lvl: Level) => {
-    setPhase('brief');
+  const loadWell = (id: LevelId, autoplay: boolean) => {
+    const lvl = LEVELS[id - 1];
+    const nextRef: TfRef = lvl.start.inc < 7 ? 'mtf' : 'gtf';
+    setLevelId(id);
+    setPhase('run');
+    setPlaying(autoplay);
     setMode(lvl.start.mode);
-    setTfRefMode(lvl.start.inc < 7 ? 'mtf' : 'gtf');
-    setCmdTf(0);
+    setTfRefMode(nextRef);
+    setCmdTf(hsCommand(nextRef, lvl.start.azi));
     setWob(24);
     setRop(120);
     setBit(lvl.start);
@@ -374,26 +391,21 @@ export const ToolfaceDial: React.FC = () => {
     setResLive(lithAt(lvl.start.tvd).res);
     setContInc(lvl.start.inc);
     setContAzi(lvl.start.azi);
-    setActualTf(0);
-    actualTfR.current = 0;
+    setActualTf(lvl.startGtf);
+    setStationFlash(false);
+    actualTfR.current = lvl.startGtf;
     nextSurvey.current = lvl.start.md + lvl.surveyEvery;
     slideFtR.current = 0;
     stuckR.current = 0;
   };
 
-  const startLevel = (id: LevelId) => {
-    const lvl = LEVELS[id - 1];
-    setLevelId(id);
-    reset(lvl);
-    setPhase('run');
-  };
-
   useEffect(() => {
-    if (phase !== 'run') return;
+    if (phase !== 'run' || !playing) return;
     const id = window.setInterval(() => {
       const lvl = LEVELS[levelId - 1];
       const prev = bitR.current;
       if (prev.md >= lvl.planEnd.md) {
+        setPlaying(false);
         setPhase('debrief');
         return;
       }
@@ -403,9 +415,7 @@ export const ToolfaceDial: React.FC = () => {
       const wobNow = wobR.current;
       const sliding = modeR.current === 'slide';
       const yEff = (lvl.yield / 100) * yieldFromWob(wobNow) * lith.yieldMul;
-
-      const cmdGtf =
-        refR.current === 'gtf' ? cmdR.current : wrap360(cmdR.current - prev.azi);
+      const cmdGtf = refR.current === 'gtf' ? cmdR.current : wrap360(cmdR.current - prev.azi);
 
       if (sliding) {
         const gtfNoise = prev.inc < 5 ? (5 - prev.inc) * 7 + lvl.tfNoise : lvl.tfNoise;
@@ -466,6 +476,7 @@ export const ToolfaceDial: React.FC = () => {
       if (risk >= 100) {
         setStuck(true);
         setSurveys((s) => [...s, next]);
+        setPlaying(false);
         setPhase('debrief');
         return;
       }
@@ -473,11 +484,37 @@ export const ToolfaceDial: React.FC = () => {
       if (next.md >= nextSurvey.current) {
         nextSurvey.current += lvl.surveyEvery;
         setSurveys((s) => [...s, next]);
-        setPhase('station');
+        setStationFlash(true);
+        window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(() => setStationFlash(false), 2200);
       }
     }, 80);
     return () => window.clearInterval(id);
-  }, [phase, levelId]);
+  }, [phase, levelId, playing]);
+
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  const setCmdFromPointer = (e: React.PointerEvent<SVGSVGElement>) => {
+    const el = dialRef.current;
+    if (!el) return;
+    setCmdTf(Math.round(pointerTf(el, e.clientX, e.clientY)));
+  };
+
+  const onDialDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    dragR.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setCmdFromPointer(e);
+  };
+  const onDialMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!dragR.current) return;
+    setCmdFromPointer(e);
+  };
+  const onDialUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    dragR.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
 
   const tfMean = tfErrN ? tfErrAcc / tfErrN : 0;
   const gtfGood = gtfOk && gtfLowHits < 18;
@@ -498,6 +535,7 @@ export const ToolfaceDial: React.FC = () => {
   const dTvd = bit.tvd - targetNow.tvd;
   const dAzi = angDiff(bit.azi, targetNow.azi);
   const tfLag = Math.abs(angDiff(cmdGtf, actualTf));
+  const lastSurvey = surveys[surveys.length - 1];
 
   const plot = useMemo(() => {
     const innerW = PW - PAD.l - PAD.r;
@@ -541,44 +579,35 @@ export const ToolfaceDial: React.FC = () => {
   const pathOf = (pts: Station[]) =>
     pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${plot.xOf(p).toFixed(1)},${plot.yOf(p).toFixed(1)}`).join(' ');
 
-  const chip =
-    phase === 'debrief'
-      ? stuck
-        ? { label: 'Stuck', cls: 'text-red-400', bar: '#ef4444' }
-        : sc.total >= 75
-          ? { label: 'Send', cls: 'text-emerald-400', bar: '#34d399' }
-          : { label: 'Miss', cls: 'text-amber-400', bar: '#f59e0b' }
-      : phase === 'station'
+  const chip = stuck
+    ? { label: 'Stuck', cls: 'text-red-400', bar: '#ef4444' }
+    : phase === 'debrief'
+      ? sc.total >= 75
+        ? { label: 'Send', cls: 'text-emerald-400', bar: '#34d399' }
+        : { label: 'Miss', cls: 'text-amber-400', bar: '#f59e0b' }
+      : stationFlash
         ? { label: 'Station', cls: 'text-amber-400', bar: '#f59e0b' }
-        : stuckRisk > 55
-          ? { label: 'Packoff risk', cls: 'text-red-400', bar: '#ef4444' }
-          : bit.dls > level.dlsLimit
-            ? { label: 'High DLS', cls: 'text-amber-400', bar: '#f59e0b' }
-            : { label: mode === 'slide' ? 'Sliding' : 'Rotating', cls: 'text-emerald-400', bar: '#34d399' };
+        : !playing
+          ? { label: 'Paused', cls: 'text-zinc-300', bar: '#a1a1aa' }
+          : stuckRisk > 55
+            ? { label: 'Packoff risk', cls: 'text-red-400', bar: '#ef4444' }
+            : bit.dls > level.dlsLimit
+              ? { label: 'High DLS', cls: 'text-amber-400', bar: '#f59e0b' }
+              : { label: mode === 'slide' ? 'Sliding' : 'Rotating', cls: 'text-emerald-400', bar: '#34d399' };
 
   const coach = (() => {
-    if (phase === 'station') {
-      return `Survey at ${bit.md.toFixed(0)} ft. Inc ${bit.inc.toFixed(1)}° vs plan ${targetNow.inc.toFixed(1)}° (${dInc >= 0 ? '+' : ''}${dInc.toFixed(1)}). TVD ${dTvd >= 0 ? '+' : ''}${dTvd.toFixed(0)} ft. Correct, then drill ahead.`;
-    }
-    if (gtfUnreliable) return 'Inc is under 5°. Gravity toolface is poorly defined. Switch to MTF or the face you think you have is fiction.';
-    if (stuckRisk > 70) return `Cuttings packing up. Slide footage ${slideFt.toFixed(0)} ft at ${wob} klb. Rotate and circulate before this becomes a stuck event.`;
-    if (bit.dls > level.dlsLimit) return `DLS ${bit.dls.toFixed(1)}°/100 ft is over the ${level.dlsLimit}°/100 limit. Ease the curve — you cannot bury this with the next slide.`;
-    if (tfLag > 35 && mode === 'slide') return `Toolface lag ${tfLag.toFixed(0)}°. Lead right for reactive torque. Dropping WOB will let the face catch the command.`;
+    if (phase === 'debrief') return debriefNotes[0];
+    if (gtfUnreliable) return 'Inc is under 5°. Gravity toolface is poorly defined. Switch to MTF.';
+    if (stuckRisk > 70) return `Cuttings packing up. Slide ${slideFt.toFixed(0)} ft at ${wob} klb. Rotate before this sticks.`;
+    if (bit.dls > level.dlsLimit) return `DLS ${bit.dls.toFixed(1)}°/100 ft is over the ${level.dlsLimit}°/100 limit.`;
+    if (tfLag > 35 && mode === 'slide') return `Toolface lag ${tfLag.toFixed(0)}°. Drag the dial and lead right for reactive torque.`;
     if (mode === 'rotate') {
-      return `Rotating in ${lith.name}. Walk ${ (level.walk * lith.walkMul).toFixed(1)}°/100 ft to the right. Inc will sag. Use this to hold, not to land.`;
+      return `Rotating in ${lith.name}. Walk ${(level.walk * lith.walkMul).toFixed(1)}°/100 ft right. Inc sags.`;
     }
-    return `Sliding ${actualTf.toFixed(0)}° GTF in ${lith.name}. Effective yield ${(level.yield * yieldFromWob(wob) * lith.yieldMul).toFixed(1)}°/100 ft. HS builds, 90° turns right, 270° left.`;
+    return `Sliding ${actualTf.toFixed(0)}° GTF in ${lith.name}. Yield ${(level.yield * yieldFromWob(wob) * lith.yieldMul).toFixed(1)}°/100 ft. Drag the dial — HS builds, 90° turns right.`;
   })();
 
-  const rubric = [
-    { l: 'Inc vs plan', v: `${bit.inc.toFixed(1)}° / ${level.planEnd.inc}°`, p: sc.incPts, max: 25 },
-    { l: 'TVD vs plan', v: `${bit.tvd.toFixed(0)} / ${level.planEnd.tvd} ft`, p: sc.tvdPts, max: 20 },
-    { l: 'Azi vs plan', v: `${bit.azi.toFixed(1)}° / ${level.planEnd.azi}°`, p: sc.aziPts, max: 15 },
-    { l: 'Peak DLS', v: `${peakDls.toFixed(1)}°/100 ft`, p: sc.dlsPts, max: 15 },
-    { l: 'Slide TF hold', v: `${tfMean.toFixed(0)}° mean |err|`, p: sc.holdPts, max: 10 },
-    { l: 'GTF / MTF use', v: gtfGood && mtfOk ? 'Correct refs' : 'Ref miss', p: sc.refPts, max: 10 },
-    { l: 'Hole condition', v: stuck ? 'Stuck event' : 'Open hole', p: sc.stuckPts, max: 5 },
-  ];
+  const ticks = tfRefMode === 'gtf' ? ['HS', 'R', 'LS', 'L'] : ['N', 'E', 'S', 'W'];
 
   return (
     <div className="space-y-3">
@@ -586,295 +615,292 @@ export const ToolfaceDial: React.FC = () => {
         <div className="min-w-0">
           <p className="label-caps text-zinc-500">Sim lab</p>
           <h3 className="instrument-title mt-1">Toolface Control</h3>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
-            Plan the slide, hold the face, take the station, correct. Minimum curvature
-            and DLS decide if this curve gets sent — not the dial by itself.
-          </p>
+          <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">{level.brief}</p>
         </div>
-        {phase !== 'brief' && (
-          <span className={`instrument-chip shrink-0 ${chip.cls}`}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
-            {chip.label}
-          </span>
-        )}
+        <span className={`instrument-chip shrink-0 ${chip.cls}`}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
+          {chip.label}
+        </span>
       </div>
 
-      {phase === 'brief' && (
-        <div className="space-y-1">
-          {LEVELS.map((lvl) => (
-            <button
-              key={lvl.id}
-              type="button"
-              onClick={() => startLevel(lvl.id)}
-              className="w-full py-2.5 text-left"
-            >
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="text-[13px] font-semibold text-zinc-50">
-                  Level {lvl.id} · {lvl.name}
-                </span>
-                <span className="label-caps text-zinc-600">{lvl.well}</span>
-              </span>
-              <span className="mt-0.5 block text-[12px] leading-relaxed text-zinc-400">{lvl.brief}</span>
-              <span className="mt-1 block text-[11px] leading-relaxed text-emerald-400/90">{lvl.goal}</span>
-            </button>
+      <div className="flex gap-1">
+        {LEVELS.map((lvl) => (
+          <button
+            key={lvl.id}
+            type="button"
+            onClick={() => loadWell(lvl.id, true)}
+            className={`instrument-btn flex-1 px-1.5 ${levelId === lvl.id ? 'is-active' : ''}`}
+          >
+            {lvl.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-1">
+        {(
+          [
+            ['profile', 'Profile'],
+            ['plan', 'Plan'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setPlotView(id)}
+            className={`instrument-btn flex-1 ${plotView === id ? 'is-active' : ''}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#07080a]">
+        <svg viewBox={`0 0 ${PW} ${PH}`} className="block h-auto w-full" role="img" aria-label="Live wellbore trajectory">
+          <defs>
+            <linearGradient id="tf-path" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#059669" />
+            </linearGradient>
+            <radialGradient id="tf-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#34d399" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width={PW} height={PH} fill="#07080a" />
+          {plot.yTicks.map((t) => (
+            <g key={`y-${t}`}>
+              <line
+                x1={PAD.l}
+                x2={PW - PAD.r}
+                y1={plot.yTickPos(t)}
+                y2={plot.yTickPos(t)}
+                stroke="rgba(255,255,255,0.06)"
+              />
+              <text x={PAD.l - 5} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#71717a" fontSize="8">
+                {Math.round(t)}
+              </text>
+            </g>
           ))}
-        </div>
-      )}
+          {plot.xTicks.map((t) => (
+            <g key={`x-${t}`}>
+              <line
+                y1={PAD.t}
+                y2={PH - PAD.b}
+                x1={plot.xTickPos(t)}
+                x2={plot.xTickPos(t)}
+                stroke="rgba(255,255,255,0.04)"
+              />
+              <text x={plot.xTickPos(t)} y={PH - 7} textAnchor="middle" fill="#71717a" fontSize="8">
+                {Math.round(t)}
+              </text>
+            </g>
+          ))}
+          <path d={pathOf(plan)} fill="none" stroke="#3f3f46" strokeWidth="1.4" strokeDasharray="4 3" />
+          <path d={pathOf(livePts)} fill="none" stroke="url(#tf-path)" strokeWidth="2" />
+          {surveys.map((s) => (
+            <circle key={s.md} cx={plot.xOf(s)} cy={plot.yOf(s)} r="2" fill="#a1a1aa" />
+          ))}
+          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="9" fill="url(#tf-glow)" />
+          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="2.6" fill="#fafafa" />
+          <text x={PAD.l} y={10} fill="#52525b" fontSize="8">
+            {plot.yLabel}
+          </text>
+          <text x={PW - PAD.r} y={PH - 7} textAnchor="end" fill="#52525b" fontSize="8">
+            {plot.xLabel}
+          </text>
+        </svg>
+      </div>
 
-      {phase !== 'brief' && (
-        <>
-          <div className="flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-[12px] text-zinc-400">
-              L{level.id} {level.name}
-              <span className="text-zinc-600"> · {level.well}</span>
-            </p>
-            <button type="button" onClick={() => reset(level)} className="instrument-btn !py-1" aria-label="Reset well">
-              <RotateCcw size={12} />
-            </button>
-          </div>
+      <div className="grid grid-cols-4 gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-300">
+        <span>MD {bit.md.toFixed(0)}</span>
+        <span>Inc {contInc.toFixed(1)}°</span>
+        <span>Azi {contAzi.toFixed(1)}°</span>
+        <span>TVD {bit.tvd.toFixed(0)}</span>
+        <span className={bit.dls > level.dlsLimit ? 'text-amber-400' : ''}>DLS {bit.dls.toFixed(1)}</span>
+        <span className={gtfUnreliable ? 'text-amber-400' : ''}>
+          {tfRefMode === 'gtf' ? 'GTF' : 'MTF'} {displayTf.toFixed(0)}°
+        </span>
+        <span>GR {grLive.toFixed(0)}</span>
+        <span>Rt {resLive.toFixed(1)}</span>
+      </div>
 
-          <div className="flex gap-1">
-            {(
-              [
-                ['profile', 'Profile'],
-                ['plan', 'Plan'],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setPlotView(id)}
-                className={`instrument-btn flex-1 ${plotView === id ? 'is-active' : ''}`}
+      <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+        <span>
+          Δinc {dInc >= 0 ? '+' : ''}
+          {dInc.toFixed(1)}° · Δtvd {dTvd >= 0 ? '+' : ''}
+          {dTvd.toFixed(0)} · Δazi {dAzi >= 0 ? '+' : ''}
+          {dAzi.toFixed(1)}°
+        </span>
+        <svg viewBox="0 0 72 18" className="h-3.5 w-16 shrink-0" aria-hidden="true">
+          <path d={spark(grHist)} fill="none" stroke="#34d399" strokeWidth="1.2" />
+        </svg>
+      </div>
+
+      <div className="flex flex-col items-center gap-3">
+        <svg
+          ref={dialRef}
+          viewBox="-48 -48 96 96"
+          className="h-44 w-44 shrink-0 touch-none cursor-crosshair select-none"
+          role="slider"
+          aria-label="Command toolface"
+          aria-valuemin={0}
+          aria-valuemax={359}
+          aria-valuenow={cmdTf}
+          onPointerDown={onDialDown}
+          onPointerMove={onDialMove}
+          onPointerUp={onDialUp}
+          onPointerCancel={onDialUp}
+        >
+          <circle r="44" fill="#07080a" stroke="#27272a" />
+          <circle
+            r="44"
+            fill="none"
+            stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'}
+            strokeOpacity={playing ? 0.35 : 0.16}
+          />
+          {ticks.map((lab, i) => {
+            const a = toRad(i * 90 - 90);
+            return (
+              <text
+                key={lab}
+                x={Math.cos(a) * 34}
+                y={Math.sin(a) * 34 + 3}
+                textAnchor="middle"
+                fill="#a1a1aa"
+                fontSize="8"
+                className="pointer-events-none"
               >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#07080a]">
-            <svg viewBox={`0 0 ${PW} ${PH}`} className="block h-auto w-full" role="img" aria-label="Trajectory plot">
-              <defs>
-                <linearGradient id="tf-path" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#34d399" />
-                  <stop offset="100%" stopColor="#059669" />
-                </linearGradient>
-                <radialGradient id="tf-glow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#34d399" stopOpacity="0.55" />
-                  <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <rect width={PW} height={PH} fill="#07080a" />
-              {plot.yTicks.map((t) => (
-                <g key={`y-${t}`}>
-                  <line
-                    x1={PAD.l}
-                    x2={PW - PAD.r}
-                    y1={plot.yTickPos(t)}
-                    y2={plot.yTickPos(t)}
-                    stroke="rgba(255,255,255,0.06)"
-                  />
-                  <text x={PAD.l - 5} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#71717a" fontSize="8">
-                    {Math.round(t)}
-                  </text>
-                </g>
-              ))}
-              {plot.xTicks.map((t) => (
-                <g key={`x-${t}`}>
-                  <line
-                    y1={PAD.t}
-                    y2={PH - PAD.b}
-                    x1={plot.xTickPos(t)}
-                    x2={plot.xTickPos(t)}
-                    stroke="rgba(255,255,255,0.04)"
-                  />
-                  <text x={plot.xTickPos(t)} y={PH - 7} textAnchor="middle" fill="#71717a" fontSize="8">
-                    {Math.round(t)}
-                  </text>
-                </g>
-              ))}
-              <path d={pathOf(plan)} fill="none" stroke="#3f3f46" strokeWidth="1.4" strokeDasharray="4 3" />
-              <path d={pathOf(livePts)} fill="none" stroke="url(#tf-path)" strokeWidth="2" />
-              {surveys.map((s) => (
-                <circle key={s.md} cx={plot.xOf(s)} cy={plot.yOf(s)} r="2" fill="#a1a1aa" />
-              ))}
-              <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="9" fill="url(#tf-glow)" />
-              <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="2.6" fill="#fafafa" />
-              <text x={PAD.l} y={10} fill="#52525b" fontSize="8">
-                {plot.yLabel}
+                {lab}
               </text>
-              <text x={PW - PAD.r} y={PH - 7} textAnchor="end" fill="#52525b" fontSize="8">
-                {plot.xLabel}
-              </text>
-            </svg>
-          </div>
+            );
+          })}
+          <line
+            x1="0"
+            y1="0"
+            x2={Math.sin(toRad(cmdTf)) * 32}
+            y2={-Math.cos(toRad(cmdTf)) * 32}
+            stroke="#f59e0b"
+            strokeWidth="1.6"
+            strokeDasharray="3 2"
+            strokeLinecap="round"
+            className="pointer-events-none"
+          />
+          <line
+            x1="0"
+            y1="0"
+            x2={Math.sin(toRad(displayTf)) * 34}
+            y2={-Math.cos(toRad(displayTf)) * 34}
+            stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'}
+            strokeWidth="2.8"
+            strokeLinecap="round"
+            className="pointer-events-none"
+          />
+          <circle r="2.4" fill="#fafafa" className="pointer-events-none" />
+        </svg>
+        <p className="font-mono text-[12px] tabular-nums text-zinc-300">
+          Cmd {cmdTf}° · {tfRefMode === 'gtf' ? 'GTF' : 'MTF'} {displayTf.toFixed(0)}°
+          {mode === 'slide' ? ` · lag ${tfLag.toFixed(0)}°` : ' · spinning'}
+        </p>
+      </div>
 
-          <div className="grid grid-cols-4 gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-300">
-            <span>MD {bit.md.toFixed(0)}</span>
-            <span>Inc {contInc.toFixed(1)}°</span>
-            <span>Azi {contAzi.toFixed(1)}°</span>
-            <span>TVD {bit.tvd.toFixed(0)}</span>
-            <span className={bit.dls > level.dlsLimit ? 'text-amber-400' : ''}>DLS {bit.dls.toFixed(1)}</span>
-            <span className={gtfUnreliable ? 'text-amber-400' : ''}>
-              {tfRefMode === 'gtf' ? 'GTF' : 'MTF'} {displayTf.toFixed(0)}°
-            </span>
-            <span>GR {grLive.toFixed(0)}</span>
-            <span>Rt {resLive.toFixed(1)}</span>
-          </div>
+      <div className="flex gap-1">
+        {(['slide', 'rotate'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`instrument-btn flex-1 capitalize ${mode === m ? 'is-active' : ''}`}
+          >
+            {m}
+          </button>
+        ))}
+        {(['gtf', 'mtf'] as const).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => {
+              setTfRefMode(r);
+              setCmdTf(r === 'gtf' ? cmdGtf : wrap360(cmdGtf + bit.azi));
+            }}
+            className={`instrument-btn flex-1 uppercase ${tfRefMode === r ? 'is-active' : ''}`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-500">
-            <span>
-              Δinc {dInc >= 0 ? '+' : ''}
-              {dInc.toFixed(1)}° · Δtvd {dTvd >= 0 ? '+' : ''}
-              {dTvd.toFixed(0)} · Δazi {dAzi >= 0 ? '+' : ''}
-              {dAzi.toFixed(1)}°
-            </span>
-            <svg viewBox="0 0 72 18" className="h-3.5 w-16 shrink-0" aria-hidden="true">
-              <path d={spark(grHist)} fill="none" stroke="#34d399" strokeWidth="1.2" />
-            </svg>
-          </div>
+      <div className="flex gap-1">
+        {ticks.map((lab, i) => (
+          <button
+            key={lab}
+            type="button"
+            onClick={() => setCmdTf(i * 90)}
+            className={`instrument-btn flex-1 ${cmdTf === i * 90 ? 'is-active' : ''}`}
+          >
+            {lab}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex items-center gap-3">
-            <svg viewBox="-44 -44 88 88" className="h-[6.6rem] w-[6.6rem] shrink-0" role="img" aria-label="Toolface dial">
-              <circle r="40" fill="#07080a" stroke="#27272a" />
-              <circle r="40" fill="none" stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'} strokeOpacity="0.18" />
-              {(tfRefMode === 'gtf' ? ['HS', 'R', 'LS', 'L'] : ['N', 'E', 'S', 'W']).map((lab, i) => {
-                const a = toRad(i * 90 - 90);
-                return (
-                  <text
-                    key={lab}
-                    x={Math.cos(a) * 31}
-                    y={Math.sin(a) * 31 + 3}
-                    textAnchor="middle"
-                    fill="#71717a"
-                    fontSize="7"
-                  >
-                    {lab}
-                  </text>
-                );
-              })}
-              <line
-                x1="0"
-                y1="0"
-                x2={Math.sin(toRad(cmdTf)) * 28}
-                y2={-Math.cos(toRad(cmdTf)) * 28}
-                stroke="#f59e0b"
-                strokeWidth="1.4"
-                strokeDasharray="3 2"
-                strokeLinecap="round"
-              />
-              <line
-                x1="0"
-                y1="0"
-                x2={Math.sin(toRad(displayTf)) * 30}
-                y2={-Math.cos(toRad(displayTf)) * 30}
-                stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'}
-                strokeWidth="2.4"
-                strokeLinecap="round"
-              />
-              <circle r="2.2" fill="#fafafa" />
-            </svg>
+      <label className="flex items-center gap-2">
+        <span className="label-caps w-8">WOB</span>
+        <input
+          type="range"
+          min={8}
+          max={44}
+          value={wob}
+          onChange={(e) => setWob(Number(e.target.value))}
+          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+        />
+        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{wob}</span>
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="label-caps w-8">ROP</span>
+        <input
+          type="range"
+          min={40}
+          max={220}
+          step={5}
+          value={rop}
+          onChange={(e) => setRop(Number(e.target.value))}
+          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+        />
+        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{rop}</span>
+      </label>
 
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex gap-1">
-                {(['slide', 'rotate'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={`instrument-btn flex-1 capitalize ${mode === m ? 'is-active' : ''}`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                {(['gtf', 'mtf'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setTfRefMode(r)}
-                    className={`instrument-btn flex-1 uppercase ${tfRefMode === r ? 'is-active' : ''}`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-              <label className="flex items-center gap-2">
-                <span className="label-caps w-8">TF</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={359}
-                  value={cmdTf}
-                  onChange={(e) => setCmdTf(Number(e.target.value))}
-                  className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
-                />
-                <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{cmdTf}°</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="label-caps w-8">WOB</span>
-                <input
-                  type="range"
-                  min={8}
-                  max={44}
-                  value={wob}
-                  onChange={(e) => setWob(Number(e.target.value))}
-                  className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
-                />
-                <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{wob}</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="label-caps w-8">ROP</span>
-                <input
-                  type="range"
-                  min={40}
-                  max={220}
-                  step={5}
-                  value={rop}
-                  onChange={(e) => setRop(Number(e.target.value))}
-                  className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
-                />
-                <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{rop}</span>
-              </label>
-            </div>
-          </div>
-
-          {phase === 'station' && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-300">
-                <span>Station MD {bit.md.toFixed(0)}</span>
-                <span>DLS {bit.dls.toFixed(2)}°/100</span>
-                <span>Inc {bit.inc.toFixed(1)} / {targetNow.inc.toFixed(1)}</span>
-                <span>TVD {bit.tvd.toFixed(0)} / {targetNow.tvd.toFixed(0)}</span>
-                <span>Azi {bit.azi.toFixed(1)} / {targetNow.azi.toFixed(1)}</span>
-                <span>
-                  {bit.north >= 0 ? `${bit.north.toFixed(0)} N` : `${(-bit.north).toFixed(0)} S`}{' '}
-                  {bit.east >= 0 ? `${bit.east.toFixed(0)} E` : `${(-bit.east).toFixed(0)} W`}
-                </span>
-              </div>
-              <button type="button" onClick={() => setPhase('run')} className="instrument-btn is-active w-full">
-                Accept station · drill ahead
-              </button>
-            </div>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => phase === 'debrief' ? loadWell(levelId, true) : setPlaying((p) => !p)}
+          className="instrument-btn is-active flex-1"
+        >
+          {phase === 'debrief' ? (
+            <>
+              <Play size={12} /> Drill again
+            </>
+          ) : playing ? (
+            <>
+              <Pause size={12} /> Pause
+            </>
+          ) : (
+            <>
+              <Play size={12} /> Drill
+            </>
           )}
+        </button>
+        <button type="button" onClick={() => loadWell(levelId, true)} className="instrument-btn" aria-label="Reset well">
+          <RotateCcw size={12} />
+        </button>
+      </div>
 
-          {phase === 'run' && (
-            <button
-              type="button"
-              onClick={() => {
-                setSurveys((s) => (s[s.length - 1]?.md === bit.md ? s : [...s, bit]));
-                nextSurvey.current = bit.md + level.surveyEvery;
-                setPhase('station');
-              }}
-              className="instrument-btn w-full"
-            >
-              <Pause size={12} /> Hold for survey
-            </button>
-          )}
-
-          <p className="text-[12px] leading-relaxed text-zinc-400">{coach}</p>
-        </>
+      {stationFlash && lastSurvey && (
+        <p className="font-mono text-[11px] tabular-nums text-amber-300">
+          Station {lastSurvey.md.toFixed(0)} · Inc {lastSurvey.inc.toFixed(1)}° / {targetNow.inc.toFixed(1)}° · TVD{' '}
+          {lastSurvey.tvd.toFixed(0)} / {targetNow.tvd.toFixed(0)}
+        </p>
       )}
+
+      <p className="text-[12px] leading-relaxed text-zinc-400">{coach}</p>
 
       {phase === 'debrief' && (
         <div className="space-y-2">
@@ -882,7 +908,15 @@ export const ToolfaceDial: React.FC = () => {
             Score {sc.total}
             <span className="text-zinc-500"> / 100</span>
           </p>
-          {rubric.map((row) => (
+          {[
+            { l: 'Inc vs plan', v: `${bit.inc.toFixed(1)}° / ${level.planEnd.inc}°`, p: sc.incPts, max: 25 },
+            { l: 'TVD vs plan', v: `${bit.tvd.toFixed(0)} / ${level.planEnd.tvd} ft`, p: sc.tvdPts, max: 20 },
+            { l: 'Azi vs plan', v: `${bit.azi.toFixed(1)}° / ${level.planEnd.azi}°`, p: sc.aziPts, max: 15 },
+            { l: 'Peak DLS', v: `${peakDls.toFixed(1)}°/100 ft`, p: sc.dlsPts, max: 15 },
+            { l: 'Slide TF hold', v: `${tfMean.toFixed(0)}° mean |err|`, p: sc.holdPts, max: 10 },
+            { l: 'GTF / MTF use', v: gtfGood && mtfOk ? 'Correct refs' : 'Ref miss', p: sc.refPts, max: 10 },
+            { l: 'Hole condition', v: stuck ? 'Stuck event' : 'Open hole', p: sc.stuckPts, max: 5 },
+          ].map((row) => (
             <div key={row.l} className="flex items-baseline justify-between gap-3 text-[12px]">
               <span className="text-zinc-400">{row.l}</span>
               <span className="font-mono tabular-nums text-zinc-200">
@@ -893,40 +927,11 @@ export const ToolfaceDial: React.FC = () => {
               </span>
             </div>
           ))}
-          <div className="space-y-1.5 pt-1">
-            {debriefNotes.map((n) => (
-              <p key={n} className="text-[12px] leading-relaxed text-zinc-400">
-                {n}
-              </p>
-            ))}
-          </div>
-          <div className="overflow-x-auto pt-1">
-            <table className="w-full text-left font-mono text-[10px] tabular-nums text-zinc-400">
-              <thead>
-                <tr className="text-zinc-600">
-                  <th className="pb-1 font-medium">MD</th>
-                  <th className="pb-1 font-medium">Inc</th>
-                  <th className="pb-1 font-medium">Azi</th>
-                  <th className="pb-1 font-medium">TVD</th>
-                  <th className="pb-1 font-medium">DLS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {surveys.slice(-8).map((s) => (
-                  <tr key={s.md}>
-                    <td className="py-0.5">{s.md.toFixed(0)}</td>
-                    <td>{s.inc.toFixed(1)}</td>
-                    <td>{s.azi.toFixed(1)}</td>
-                    <td>{s.tvd.toFixed(0)}</td>
-                    <td>{s.dls.toFixed(1)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button type="button" onClick={() => setPhase('brief')} className="instrument-btn is-active w-full">
-            <Play size={12} /> Next well
-          </button>
+          {debriefNotes.slice(1).map((n) => (
+            <p key={n} className="text-[12px] leading-relaxed text-zinc-400">
+              {n}
+            </p>
+          ))}
         </div>
       )}
     </div>
