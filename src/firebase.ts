@@ -1,5 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+  onAuthStateChanged,
+  User,
+} from 'firebase/auth';
 import { 
   initializeFirestore,
   doc, 
@@ -39,7 +48,29 @@ export const db = initializeFirestore(app, {
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth Helpers
-export const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
+// Prefer popup on desktop web; fall back to redirect (more reliable on mobile / strict browsers)
+export const loginWithGoogle = async () => {
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (err: any) {
+    const code = err?.code as string | undefined;
+    // These codes mean popup auth is not usable — use full-page redirect instead
+    if (
+      code === 'auth/popup-blocked' ||
+      code === 'auth/popup-closed-by-user' ||
+      code === 'auth/cancelled-popup-request' ||
+      code === 'auth/operation-not-supported-in-this-environment'
+    ) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw err;
+  }
+};
+
+/** Call once on app boot to finish redirect-based Google sign-in */
+export const completeGoogleRedirectLogin = () => getRedirectResult(auth);
+
 export const logout = () => signOut(auth);
 
 // Firestore Error Handler
