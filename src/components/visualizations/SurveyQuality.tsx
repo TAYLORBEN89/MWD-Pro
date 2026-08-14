@@ -1,167 +1,137 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Compass, Target, Navigation, ShieldCheck, AlertTriangle, CheckCircle2, RefreshCw, Eye, EyeOff, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Info } from 'lucide-react';
 
-const surveyData = [
-  { depth: 1000, inc: 0.5, az: 120, g: 1.001, b: 52000, dip: 65, status: 'Good' },
-  { depth: 2000, inc: 1.2, az: 125, g: 0.998, b: 51950, dip: 64, status: 'Good' },
-  { depth: 3000, inc: 5.4, az: 130, g: 1.015, b: 53500, dip: 68, status: 'Warning' },
-  { depth: 4000, inc: 12.8, az: 135, g: 1.002, b: 52050, dip: 65, status: 'Good' },
-  { depth: 5000, inc: 25.4, az: 140, g: 0.985, b: 50500, dip: 62, status: 'Critical' },
-  { depth: 6000, inc: 45.2, az: 145, g: 1.000, b: 52000, dip: 65, status: 'Good' },
+const G_REF = 1.0;
+const B_REF = 52140;
+const DIP_REF = 66.4;
+const G_WIN = 0.005;
+const B_WIN = 250;
+const DIP_WIN = 0.3;
+
+interface Station {
+  md: number;
+  inc: number;
+  azi: number;
+  g: number;
+  b: number;
+  dip: number;
+  note: string;
+}
+
+const STATIONS: Station[] = [
+  { md: 1840, inc: 0.4, azi: 118.2, g: 1.001, b: 52110, dip: 66.3, note: 'Shallow, pumps-off, clean field.' },
+  { md: 3120, inc: 12.6, azi: 126.4, g: 0.999, b: 52080, dip: 66.5, note: 'Build section. Still inside windows.' },
+  { md: 4480, inc: 44.1, azi: 131.0, g: 1.014, b: 52190, dip: 66.6, note: 'Gtot high — pipe still moving, or sag.' },
+  { md: 5960, inc: 71.8, azi: 138.7, g: 1.000, b: 54820, dip: 68.9, note: 'Btot and dip blown — steel too close.' },
+  { md: 7210, inc: 88.4, azi: 140.1, g: 0.998, b: 52040, dip: 66.2, note: 'Lateral. Quiet station. Keep it.' },
+  { md: 8640, inc: 89.1, azi: 141.8, g: 0.982, b: 51990, dip: 66.1, note: 'Gtot low — take it again, do not send.' },
 ];
 
+function grade(s: Station) {
+  const gOk = Math.abs(s.g - G_REF) <= G_WIN;
+  const bOk = Math.abs(s.b - B_REF) <= B_WIN;
+  const dOk = Math.abs(s.dip - DIP_REF) <= DIP_WIN;
+  const pass = gOk && bOk && dOk;
+  return { gOk, bOk, dOk, pass };
+}
+
 export const SurveyQuality: React.FC = () => {
-  const [activeSurvey, setActiveSurvey] = useState(0);
-  const [showCorrections, setShowCorrections] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [choice, setChoice] = useState<'pass' | 'fail' | null>(null);
   const [score, setScore] = useState(0);
+  const [asked, setAsked] = useState(0);
+  const s = STATIONS[idx];
+  const g = grade(s);
 
-  const survey = surveyData[activeSurvey];
+  const decide = (c: 'pass' | 'fail') => {
+    if (choice) return;
+    setChoice(c);
+    setAsked((n) => n + 1);
+    const correct = c === 'pass' ? g.pass : !g.pass;
+    if (correct) setScore((n) => n + 1);
+  };
 
-  const handleValidate = (isValid: boolean) => {
-    if (isValid === (survey.status === 'Good')) {
-      setScore(prev => prev + 1);
-    }
-    setActiveSurvey((prev) => (prev + 1) % surveyData.length);
+  const next = () => {
+    setChoice(null);
+    setIdx((i) => (i + 1) % STATIONS.length);
   };
 
   return (
-    <div className="instrument overflow-hidden">
-      <div className="flex flex-col gap-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-xl">
-              <Compass className="text-emerald-500" size={24} />
-            </div>
-            <div>
-              <h3 className="instrument-title">Survey Quality Control Lab</h3>
-              <p className="text-xs text-zinc-500 font-medium tracking-wide">Validation & Error Analysis</p>
-            </div>
+    <div className="instrument space-y-3">
+      <div className="instrument-header mb-0">
+        <div className="instrument-title-row">
+          <div className="instrument-icon">
+            <CheckCircle2 size={16} />
           </div>
-          <div className="bg-zinc-100 px-4 py-2 rounded-xl border border-white/10">
-            <p className="instrument-metric-label">Validated</p>
-            <p className="text-xl font-mono text-zinc-100 leading-none">{score}</p>
+          <div>
+            <h3 className="instrument-title">Survey Quality Control</h3>
+            <p className="instrument-subtitle">
+              G ±{G_WIN} g · B ±{B_WIN} nT · dip ±{DIP_WIN}°
+            </p>
           </div>
         </div>
+        <span className="instrument-chip">
+          {score}/{asked || '—'}
+        </span>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Survey Data Panel */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="instrument-panel space-y-6">
-              <div className="flex justify-between items-center">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Survey Parameters @ {survey.depth} ft</h4>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                  survey.status === 'Good' ? 'bg-emerald-100 text-emerald-700' : 
-                  survey.status === 'Warning' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                }`}>
-                  {survey.status} Data
-                </div>
-              </div>
+      <p className="text-[12px] text-zinc-400">
+        Station {s.md.toLocaleString()} ft MD · Inc {s.inc.toFixed(1)}° · Azi {s.azi.toFixed(1)}°
+      </p>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { label: 'Inclination', value: `${survey.inc}°`, icon: Navigation },
-                  { label: 'Azimuth', value: `${survey.az}°`, icon: Compass },
-                  { label: 'G-Total', value: `${survey.g} G`, icon: ShieldCheck, alert: Math.abs(survey.g - 1.0) > 0.01 },
-                  { label: 'B-Total', value: `${survey.b} nT`, icon: Zap, alert: Math.abs(survey.b - 52000) > 1000 },
-                  { label: 'Dip Angle', value: `${survey.dip}°`, icon: Target, alert: Math.abs(survey.dip - 65) > 2 }
-                ].map((param, i) => (
-                  <div key={i} className={`p-4 rounded-xl border transition-all ${
-                    param.alert ? 'bg-red-50 border-red-200' : 'bg-surface border-white/10'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <param.icon size={14} className={param.alert ? 'text-red-500' : 'text-zinc-400'} />
-                      <p className="instrument-metric-label">{param.label}</p>
-                    </div>
-                    <p className={`text-lg font-mono font-bold ${param.alert ? 'text-red-600' : 'text-zinc-100'}`}>{param.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button 
-                onClick={() => handleValidate(true)}
-                className="flex-1 bg-emerald-500 text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all  shadow-emerald-500/20 flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 size={20} />
-                Accept Survey
-              </button>
-              <button 
-                onClick={() => handleValidate(false)}
-                className="flex-1 bg-red-500 text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-red-600 transition-all  shadow-red-500/20 flex items-center justify-center gap-2"
-              >
-                <AlertTriangle size={20} />
-                Reject Survey
-              </button>
-            </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[
+          { l: 'Gtot', v: `${s.g.toFixed(3)} g`, ok: g.gOk, ref: `${G_REF.toFixed(3)}` },
+          { l: 'Btot', v: `${s.b.toLocaleString()} nT`, ok: g.bOk, ref: `${B_REF.toLocaleString()}` },
+          { l: 'Dip', v: `${s.dip.toFixed(1)}°`, ok: g.dOk, ref: `${DIP_REF.toFixed(1)}°` },
+        ].map((row) => (
+          <div
+            key={row.l}
+            className={`rounded-lg border px-2 py-2 ${
+              row.ok ? 'border-white/10 bg-[#07080a]' : 'border-red-500/30 bg-red-500/10'
+            }`}
+          >
+            <p className="label-caps">{row.l}</p>
+            <p className={`text-sm font-mono font-semibold tabular-nums ${row.ok ? 'text-zinc-100' : 'text-red-300'}`}>
+              {row.v}
+            </p>
+            <p className="text-[10px] text-zinc-500 font-mono">ref {row.ref}</p>
           </div>
+        ))}
+      </div>
 
-          {/* Analysis Panel */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 space-y-6">
-              <div className="flex justify-between items-center">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Error Ellipse Analysis</h4>
-                <button 
-                  onClick={() => setShowCorrections(!showCorrections)}
-                  className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors"
-                >
-                  {showCorrections ? 'Hide Corrections' : 'Apply Corrections'}
-                </button>
-              </div>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => decide('pass')}
+          className={`instrument-btn flex-1 ${choice === 'pass' ? 'is-active' : ''}`}
+        >
+          Accept
+        </button>
+        <button
+          type="button"
+          onClick={() => decide('fail')}
+          className={`instrument-btn flex-1 ${choice === 'fail' ? (g.pass ? '' : 'is-active') : ''}`}
+        >
+          Reject
+        </button>
+      </div>
 
-              <div className="aspect-square bg-zinc-800/50 rounded-full border-2 border-zinc-700 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-full h-[1px] bg-zinc-700" />
-                  <div className="h-full w-[1px] bg-zinc-700" />
-                </div>
-                
-                {/* Error Ellipse */}
-                <motion.div 
-                  animate={{ 
-                    scale: showCorrections ? 0.5 : 1,
-                    opacity: showCorrections ? 0.5 : 1,
-                    rotate: survey.az 
-                  }}
-                  className="w-40 h-24 border-2 border-red-500/50 bg-red-500/10 rounded-[100%] relative"
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-1 h-1 bg-red-500 rounded-full" />
-                  </div>
-                </motion.div>
+      {choice && (
+        <button type="button" onClick={next} className="instrument-btn w-full">
+          Next station
+        </button>
+      )}
 
-                {showCorrections && (
-                  <motion.div 
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="absolute w-20 h-12 border-2 border-emerald-500/50 bg-emerald-500/10 rounded-[100%]"
-                  />
-                )}
-
-                <div className="absolute bottom-4 left-4 text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Uncertainty Visualization</div>
-              </div>
-
-              <div className="space-y-3">
-                <p className="instrument-metric-label">Correction Methods</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className={`p-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center transition-all ${
-                    showCorrections ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
-                  }`}>IFR Correction</div>
-                  <div className={`p-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center transition-all ${
-                    showCorrections ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-600'
-                  }`}>MSAC Analysis</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-3">
-              <ShieldCheck className="text-emerald-500" size={20} />
-              <p className="text-xs text-emerald-300 leading-relaxed font-medium">
-                <span className="font-bold">QC Tip:</span> G-Total should always be close to 1.000 G. Significant deviations indicate magnetic interference or tool vibration during the survey.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="instrument-tip">
+        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
+        <p>
+          {choice
+            ? `${choice === (g.pass ? 'pass' : 'fail') ? 'Correct.' : 'Wrong.'} ${s.note} ${
+                g.pass ? 'All three scalars inside the window.' : 'A failed scalar means the azimuth is not proven.'
+              }`
+            : 'Accept only if Gtot, Btot, and dip all sit inside the window. One red channel is a reject.'}
+        </p>
       </div>
     </div>
   );

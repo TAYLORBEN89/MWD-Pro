@@ -1,187 +1,143 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Radio, Zap, Activity, Settings2, Info } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Info, Radio } from 'lucide-react';
+
+const WORD = [1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0];
+const TRACE_N = 160;
+const W = 280;
+const H = 72;
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
 
 export const MudPulseSimulator: React.FC = () => {
-  const [noise, setNoise] = useState(20);
-  const [bitRate, setBitRate] = useState(1);
-  const [isTransmitting, setIsTransmitting] = useState(true);
-  const [dataStream, setDataStream] = useState<number[]>([]);
-  const [decodedBits, setDecodedBits] = useState<string>('');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [noisePsi, setNoisePsi] = useState(18);
+  const [bps, setBps] = useState(1.5);
+  const [bitIdx, setBitIdx] = useState(0);
+  const [decoded, setDecoded] = useState<number[]>([]);
+  const [errors, setErrors] = useState(0);
+  const [total, setTotal] = useState(0);
+  const trace = useRef<number[]>(Array.from({ length: TRACE_N }, () => 0));
+  const [, setTick] = useState(0);
+  const phase = useRef(0);
 
-  // Generate random data
+  const pulseHeight = 90;
+
   useEffect(() => {
-    if (isTransmitting) {
-      const interval = setInterval(() => {
-        const bit = Math.random() > 0.5 ? 1 : 0;
-        setDataStream(prev => [...prev.slice(-40), bit]);
-        setDecodedBits(prev => (prev + bit).slice(-8));
-      }, 1000 / bitRate);
-      return () => clearInterval(interval);
-    }
-  }, [isTransmitting, bitRate]);
+    const ms = 1000 / Math.max(0.4, bps);
+    const id = window.setInterval(() => {
+      setBitIdx((i) => {
+        const bit = WORD[i % WORD.length];
+        const noise = (Math.random() - 0.5) * 2 * noisePsi;
+        const threshold = pulseHeight * 0.45;
+        const observed = (bit ? pulseHeight : 0) + noise;
+        const guess = observed > threshold ? 1 : 0;
+        setDecoded((d) => [...d.slice(-11), guess]);
+        setTotal((n) => n + 1);
+        if (guess !== bit) setErrors((e) => e + 1);
+        return i + 1;
+      });
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [bps, noisePsi]);
 
-  // Draw the wave
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const id = window.setInterval(() => {
+      phase.current += 0.18;
+      const bit = WORD[bitIdx % WORD.length];
+      const pump = Math.sin(phase.current * 2.4) * noisePsi * 0.35;
+      const jitter = (Math.random() - 0.5) * noisePsi * 0.55;
+      const pulse = bit ? pulseHeight * (0.75 + 0.25 * Math.sin(phase.current * 8)) : 0;
+      const next = trace.current.slice(1);
+      next.push(clamp(pulse + pump + jitter, -40, 140));
+      trace.current = next;
+      setTick((n) => n + 1);
+    }, 40);
+    return () => window.clearInterval(id);
+  }, [bitIdx, noisePsi]);
 
-    let animationFrameId: number;
-    let offset = 0;
+  const path = useMemo(() => {
+    return trace.current
+      .map((v, i) => {
+        const x = (i / (TRACE_N - 1)) * W;
+        const y = H - ((v + 40) / 180) * (H - 8) - 4;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [bitIdx, noisePsi]);
 
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw grid
-      ctx.strokeStyle = '#27272a';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < canvas.width; i += 40) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
-      }
-
-      // Draw baseline
-      ctx.strokeStyle = '#3f3f46';
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height / 2);
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-
-      // Draw signal
-      ctx.beginPath();
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-
-      const points = 100;
-      const step = canvas.width / points;
-
-      for (let i = 0; i <= points; i++) {
-        const x = i * step;
-        const streamIdx = Math.floor((i + offset) / (points / 10)) % dataStream.length;
-        const bit = dataStream[streamIdx] || 0;
-        
-        // Base signal (square-ish wave for pulses)
-        let y = canvas.height / 2;
-        if (bit === 1) {
-          y -= 40; // Pulse up
-        }
-
-        // Add noise
-        const noiseVal = (Math.random() - 0.5) * noise;
-        y += noiseVal;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      if (isTransmitting) {
-        offset += 0.5;
-      }
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [dataStream, noise, isTransmitting]);
+  const ber = total ? (errors / total) * 100 : 0;
+  const ok = ber < 8;
+  const word = decoded.map(String).join('') || '············';
 
   return (
-    <div className="instrument space-y-5">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
+    <div className="instrument space-y-3">
+      <div className="instrument-header mb-0">
+        <div className="instrument-title-row">
           <div className="instrument-icon">
-            <Radio className="text-emerald-500" size={24} />
+            <Radio size={16} />
           </div>
           <div>
-            <h3 className="instrument-title">Mud Pulse Telemetry Simulator</h3>
-            <p className="instrument-subtitle">Positive Pulse Encoding (Manchester)</p>
+            <h3 className="instrument-title">Mud Pulse Telemetry</h3>
+            <p className="instrument-subtitle">Positive pulse · standpipe ΔP</p>
           </div>
         </div>
-        <button 
-          onClick={() => setIsTransmitting(!isTransmitting)}
-          className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            isTransmitting ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 'bg-emerald-500 text-zinc-100'
-          }`}
-        >
-          {isTransmitting ? 'Stop Pulse' : 'Start Pulse'}
-        </button>
+        <span className={`instrument-chip ${ok ? 'text-emerald-400' : 'text-red-400'}`}>
+          BER {ber.toFixed(0)}%
+        </span>
       </div>
 
-      <div className="relative instrument-panel p-4 overflow-hidden">
-        <canvas 
-          ref={canvasRef} 
-          width={800} 
-          height={200} 
-          className="w-full h-40"
-        />
-        <div className="absolute top-4 right-4 flex gap-2">
-          <div className="px-2 py-1 bg-zinc-900/80 rounded border border-zinc-700 text-[10px] font-mono text-emerald-500">
-            SIGNAL: {isTransmitting ? 'ACTIVE' : 'IDLE'}
-          </div>
-        </div>
+      <div className="rounded-xl border border-white/10 bg-[#07080a] p-2">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-20">
+          <line x1="0" x2={W} y1={H * 0.62} y2={H * 0.62} stroke="rgba(255,255,255,0.08)" />
+          <path d={path} fill="none" stroke="#10b981" strokeWidth="1.6" />
+        </svg>
+        <p className="text-[9px] text-zinc-500 font-mono px-1">Standpipe pressure · poppet close = up-going pulse</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Settings2 size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">Signal Parameters</span>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                <span className="text-zinc-500">Pump Noise (PSI)</span>
-                <span className="text-emerald-500">{noise.toFixed(0)}</span>
-              </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={noise}
-                onChange={(e) => setNoise(parseInt(e.target.value))}
-                className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-            </div>
+      <div className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm tracking-[0.18em] text-emerald-400 overflow-hidden">
+        {word.padEnd(12, '·')}
+      </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                <span className="text-zinc-500">Baud Rate (bps)</span>
-                <span className="text-emerald-500">{bitRate.toFixed(1)}</span>
-              </div>
-              <input 
-                type="range" 
-                min="0.5" 
-                max="5" 
-                step="0.5"
-                value={bitRate}
-                onChange={(e) => setBitRate(parseFloat(e.target.value))}
-                className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-            </div>
-          </div>
-        </div>
+      <div className="space-y-2">
+        <label className="flex items-center gap-3">
+          <span className="label-caps w-14 shrink-0">Noise</span>
+          <input
+            type="range"
+            min={0}
+            max={80}
+            value={noisePsi}
+            onChange={(e) => {
+              setNoisePsi(Number(e.target.value));
+              setErrors(0);
+              setTotal(0);
+            }}
+            className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+          />
+          <span className="w-12 text-right text-[11px] font-mono text-zinc-300">{noisePsi} psi</span>
+        </label>
+        <label className="flex items-center gap-3">
+          <span className="label-caps w-14 shrink-0">Rate</span>
+          <input
+            type="range"
+            min={0.5}
+            max={4}
+            step={0.5}
+            value={bps}
+            onChange={(e) => setBps(Number(e.target.value))}
+            className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+          />
+          <span className="w-12 text-right text-[11px] font-mono text-zinc-300">{bps.toFixed(1)} bps</span>
+        </label>
+      </div>
 
-        <div className="space-y-4 bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Activity size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">Decoded Bitstream</span>
-          </div>
-          <div className="h-24 bg-black/40 rounded-xl border border-zinc-800 p-4 flex items-center justify-center overflow-hidden">
-            <div className="font-mono text-xl tracking-[0.2em] text-emerald-500/80 whitespace-nowrap">
-              {decodedBits || '00000000'}
-            </div>
-          </div>
-          <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-            * Higher noise levels increase bit-error rate. In real-world MWD, we use advanced filtering to extract signal from pump noise.
-          </p>
-        </div>
+      <div className="instrument-tip">
+        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
+        <p>
+          {ok
+            ? 'Pulses clear the noise floor. A real survey word is sync + inclination + azimuth + toolface, a few bits per second — not Wi-Fi.'
+            : 'Pump noise is burying the poppet. Slow the baud, check the orifice, or wait for a quieter pump rate. Raising rate into noise only raises bit errors.'}
+        </p>
       </div>
     </div>
   );

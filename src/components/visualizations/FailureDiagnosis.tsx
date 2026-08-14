@@ -1,187 +1,185 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, Activity, Zap, Thermometer, ShieldCheck, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, Info } from 'lucide-react';
 
-const failureScenarios = [
+interface Case {
+  id: string;
+  title: string;
+  readings: { l: string; v: string; bad?: boolean }[];
+  options: string[];
+  answer: number;
+  why: string;
+}
+
+const CASES: Case[] = [
   {
-    id: 'pulser-wear',
-    title: 'Pulser Erosion',
-    symptoms: ['Decreasing pulse amplitude', 'Erratic pulse shape', 'Increased signal noise'],
-    category: 'Mechanical',
-    description: 'High velocity mud flow has eroded the poppet or orifice, reducing the pressure drop.',
-    correctDiagnosis: 'Mechanical Failure'
+    id: 'nopulse',
+    title: 'No pulses on surface',
+    readings: [
+      { l: 'SPP', v: '2,840 psi' },
+      { l: 'ΔP pulse', v: '0 psi', bad: true },
+      { l: 'Flow', v: '480 gpm' },
+      { l: 'Batt', v: '28.4 V' },
+    ],
+    options: [
+      'Decoder software crash',
+      'Poppet stuck open / no restriction',
+      'Gamma detector failed',
+    ],
+    answer: 1,
+    why: 'Pumps and voltage are fine, but standpipe never ticks. The pulser is not creating a restriction. Check poppet, solenoid, and whether the tool is even powered into pulse mode.',
   },
   {
-    id: 'vibe-out',
-    title: 'Vibration Overload',
-    symptoms: ['Repeated CPU resets', 'Erratic sensor readings', 'Memory corruption'],
-    category: 'Environmental',
-    description: 'Excessive lateral vibration (whirl) has exceeded the tool\'s design limits, causing electronics instability.',
-    correctDiagnosis: 'Environmental Failure'
+    id: 'weak',
+    title: 'Pulses too small to decode',
+    readings: [
+      { l: 'ΔP pulse', v: '14 psi', bad: true },
+      { l: 'Expected', v: '70–120 psi' },
+      { l: 'Flow', v: '510 gpm' },
+      { l: 'Hours', v: '86 h' },
+    ],
+    options: [
+      'Worn orifice / eroded poppet',
+      'Wrong magnetic declination',
+      'Accelerometer bias',
+    ],
+    answer: 0,
+    why: 'Amplitude died after a long abrasive run. That is mechanical wear, not a survey-math problem. Pull before you lose the word entirely.',
   },
   {
-    id: 'battery-depletion',
-    title: 'Power Loss',
-    symptoms: ['Weakening pulse amplitude', 'Slow telemetry updates', 'Communication timeouts'],
-    category: 'Electrical',
-    description: 'The downhole battery pack has reached its end of life, leading to insufficient power for the pulser.',
-    correctDiagnosis: 'Electrical Failure'
+    id: 'btot',
+    title: 'Surveys fail Btot',
+    readings: [
+      { l: 'Btot', v: '55,880 nT', bad: true },
+      { l: 'Ref', v: '52,140 nT' },
+      { l: 'Gtot', v: '1.001 g' },
+      { l: 'Dip', v: '69.8°', bad: true },
+    ],
+    options: [
+      'Pump noise on the decoder',
+      'Steel too close to magnetometers',
+      'Dead gamma crystal',
+    ],
+    answer: 1,
+    why: 'Gravity is clean, magnetic field is not. That is BHA steel or a hotspot, not telemetry. Check NMDC spacing and MSA — do not keep the azimuth.',
   },
   {
-    id: 'sensor-drift',
-    title: 'Thermal Drift',
-    symptoms: ['Inconsistent survey data', 'Azimuth shifts', 'Temperature warnings'],
-    category: 'Electrical',
-    description: 'High downhole temperatures have caused the magnetometers or accelerometers to drift out of calibration.',
-    correctDiagnosis: 'Electrical Failure'
-  }
+    id: 'gamma0',
+    title: 'Gamma stuck at zero',
+    readings: [
+      { l: 'GR', v: '0 API', bad: true },
+      { l: 'Pulses', v: 'OK' },
+      { l: 'Surveys', v: 'Pass' },
+      { l: 'Temp', v: '118 °C' },
+    ],
+    options: [
+      'You are in clean salt — real zero',
+      'Detector / HV supply failed',
+      'Declination file missing',
+    ],
+    answer: 1,
+    why: 'Even clean sand reads a few API of background. A hard zero with good surveys is a dead scintillator or high-voltage supply.',
+  },
+  {
+    id: 'resets',
+    title: 'Tool resets every stand',
+    readings: [
+      { l: 'Lateral', v: '8.4 g RMS', bad: true },
+      { l: 'RPM', v: '172' },
+      { l: 'WOB', v: '8 klbf' },
+      { l: 'Resets', v: '6 / 4 hr', bad: true },
+    ],
+    options: [
+      'Whirl — light WOB, high RPM',
+      'Battery end of life',
+      'Standpipe transducer cal',
+    ],
+    answer: 0,
+    why: 'High lateral g with fast RPM and light weight is classic whirl. Electronics brown-out and reboot. Drop RPM or add WOB before the board lets go for good.',
+  },
 ];
 
 export const FailureDiagnosis: React.FC = () => {
-  const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
-  const [selectedDiagnosis, setSelectedDiagnosis] = useState<string | null>(null);
-  const [showResult, setShowResult] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [pick, setPick] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [asked, setAsked] = useState(0);
+  const c = CASES[idx];
+  const revealed = pick !== null;
 
-  const scenario = failureScenarios[currentScenarioIndex];
-
-  const handleDiagnose = (diagnosis: string) => {
-    setSelectedDiagnosis(diagnosis);
-    setShowResult(true);
-    if (diagnosis === scenario.correctDiagnosis) {
-      setScore(prev => prev + 1);
-    }
+  const choose = (i: number) => {
+    if (revealed) return;
+    setPick(i);
+    setAsked((n) => n + 1);
+    if (i === c.answer) setScore((s) => s + 1);
   };
 
-  const nextScenario = () => {
-    setSelectedDiagnosis(null);
-    setShowResult(false);
-    setCurrentScenarioIndex((prev) => (prev + 1) % failureScenarios.length);
+  const next = () => {
+    setPick(null);
+    setIdx((n) => (n + 1) % CASES.length);
   };
 
   return (
-    <div className="instrument overflow-hidden relative">
-      {/* Background Grid Accent */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-
-      <div className="relative flex flex-col gap-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="instrument-icon">
-              <AlertTriangle className="text-red-500" size={24} />
-            </div>
-            <div>
-              <h3 className="instrument-title">MWD Failure Diagnostic Lab</h3>
-              <p className="text-xs text-zinc-500 font-medium tracking-wide">Post-Run Analysis Simulator</p>
-            </div>
+    <div className="instrument space-y-3">
+      <div className="instrument-header mb-0">
+        <div className="instrument-title-row">
+          <div className="instrument-icon">
+            <AlertTriangle size={16} />
           </div>
-          <div className="bg-zinc-800 px-4 py-2 rounded-xl border border-zinc-700">
-            <p className="instrument-metric-label">Score</p>
-            <p className="text-xl font-mono text-white leading-none">{score}</p>
+          <div>
+            <h3 className="instrument-title">Failure Diagnosis</h3>
+            <p className="instrument-subtitle">Read the gauges, pick the cause</p>
           </div>
         </div>
+        <span className="instrument-chip">
+          {score}/{asked || '—'}
+        </span>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Symptoms Panel */}
-          <div className="space-y-6">
-            <div className="bg-zinc-800/50 rounded-xl p-6 border border-zinc-700/50 space-y-4">
-              <div className="flex items-center gap-2">
-                <Activity size={16} className="text-zinc-500" />
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Real-Time Symptoms</h4>
-              </div>
-              <div className="space-y-3">
-                {scenario.symptoms.map((symptom, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-3 bg-zinc-900 p-3 rounded-xl border border-zinc-800"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-sm text-zinc-300 font-medium">{symptom}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+      <p className="text-sm font-semibold text-zinc-100">{c.title}</p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 text-center">
-                <Thermometer className="mx-auto mb-2 text-zinc-500" size={20} />
-                <p className="instrument-metric-label">Temp</p>
-                <p className="text-lg font-mono text-white">145°C</p>
-              </div>
-              <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30 text-center">
-                <Zap className="mx-auto mb-2 text-zinc-500" size={20} />
-                <p className="instrument-metric-label">Voltage</p>
-                <p className="text-lg font-mono text-white">24.2V</p>
-              </div>
-            </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {c.readings.map((r) => (
+          <div
+            key={r.l}
+            className={`rounded-lg border px-1.5 py-1.5 ${
+              r.bad ? 'border-red-500/30 bg-red-500/10' : 'border-white/10 bg-[#07080a]'
+            }`}
+          >
+            <p className="label-caps">{r.l}</p>
+            <p className={`text-[11px] font-mono font-semibold tabular-nums ${r.bad ? 'text-red-300' : 'text-zinc-100'}`}>
+              {r.v}
+            </p>
           </div>
+        ))}
+      </div>
 
-          {/* Diagnosis Panel */}
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Diagnosis</p>
-              {['Mechanical Failure', 'Electrical Failure', 'Environmental Failure'].map((diagnosis) => (
-                <button
-                  key={diagnosis}
-                  disabled={showResult}
-                  onClick={() => handleDiagnose(diagnosis)}
-                  className={`w-full p-4 rounded-xl text-left transition-all border flex items-center justify-between ${
-                    selectedDiagnosis === diagnosis
-                      ? diagnosis === scenario.correctDiagnosis
-                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                        : 'bg-red-500/10 border-red-500 text-red-500'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
-                  }`}
-                >
-                  <span className="font-bold">{diagnosis}</span>
-                  {selectedDiagnosis === diagnosis && (
-                    diagnosis === scenario.correctDiagnosis ? <CheckCircle2 size={20} /> : <XCircle size={20} />
-                  )}
-                </button>
-              ))}
-            </div>
+      <div className="space-y-1.5">
+        {c.options.map((opt, i) => {
+          let cls = 'border-white/10 bg-[#07080a] text-zinc-300';
+          if (revealed && i === c.answer) cls = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+          else if (revealed && i === pick) cls = 'border-red-500/40 bg-red-500/10 text-red-300';
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => choose(i)}
+              className={`w-full text-left rounded-lg border px-2.5 py-2 text-[12px] ${cls}`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
 
-            <AnimatePresence>
-              {showResult && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-zinc-800/80 p-6 rounded-xl border border-zinc-700 space-y-4"
-                >
-                  <div className="space-y-2">
-                    <h5 className="text-white font-bold flex items-center gap-2">
-                      {selectedDiagnosis === scenario.correctDiagnosis ? (
-                        <span className="text-emerald-500">Correct Diagnosis: {scenario.title}</span>
-                      ) : (
-                        <span className="text-red-500">Incorrect Diagnosis</span>
-                      )}
-                    </h5>
-                    <p className="text-sm text-zinc-400 leading-relaxed">{scenario.description}</p>
-                  </div>
-                  <button
-                    onClick={nextScenario}
-                    className="w-full bg-emerald-500 text-zinc-950 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw size={16} />
-                    Next Case Study
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+      {revealed && (
+        <button type="button" onClick={next} className="instrument-btn is-active w-full">
+          Next case
+        </button>
+      )}
 
-        <div className="instrument-tip flex items-center gap-4">
-          <div className="p-2 bg-zinc-800 rounded-xl">
-            <ShieldCheck className="text-zinc-500" size={20} />
-          </div>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            <span className="text-white font-bold">Reliability Tip:</span> Always compare real-time logs to memory data post-run. Memory data has higher resolution and can reveal intermittent failures that telemetry might miss.
-          </p>
-        </div>
+      <div className="instrument-tip">
+        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
+        <p>{revealed ? c.why : 'Ignore the job title. Read which channel is actually sick.'}</p>
       </div>
     </div>
   );

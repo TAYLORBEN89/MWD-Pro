@@ -1,196 +1,135 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Layers, Activity, Zap, Droplets, Thermometer, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Info, Layers } from 'lucide-react';
 
-const logTypes = [
-  {
-    id: 'gamma',
-    title: 'Gamma Ray',
-    description: 'Measures natural radioactivity to identify lithology (shale vs. sand).',
-    unit: 'API',
-    color: 'text-emerald-500',
-    bg: 'bg-emerald-500/10',
-    icon: Activity,
-    typicalValues: { shale: '150+', sand: '0-50' }
-  },
-  {
-    id: 'resistivity',
-    title: 'Resistivity',
-    description: 'Measures formation fluid content. Hydrocarbons are resistive; saltwater is conductive.',
-    unit: 'Ohm-m',
-    color: 'text-amber-500',
-    bg: 'bg-amber-500/10',
-    icon: Zap,
-    typicalValues: { oil: '100+', water: '< 1' }
-  },
-  {
-    id: 'density',
-    title: 'Density',
-    description: 'Measures formation bulk density to calculate porosity and identify rock type.',
-    unit: 'g/cc',
-    color: 'text-blue-500',
-    bg: 'bg-blue-500/10',
-    icon: Layers,
-    typicalValues: { sandstone: '2.65', shale: '2.72' }
-  },
-  {
-    id: 'neutron',
-    title: 'Neutron Porosity',
-    description: 'Measures hydrogen index to estimate porosity. Often used with density for gas detection.',
-    unit: '%',
-    color: 'text-purple-500',
-    bg: 'bg-purple-500/10',
-    icon: Droplets,
-    typicalValues: { reservoir: '15-30%', tight: '< 5%' }
-  }
+type Zone = 'shale' | 'wet' | 'oil' | 'gas';
+
+interface Sample {
+  md: number;
+  zone: Zone;
+  gr: number;
+  rt: number;
+  rhob: number;
+  nphi: number;
+}
+
+const ZONES: { zone: Zone; from: number; to: number }[] = [
+  { zone: 'shale', from: 10400, to: 10440 },
+  { zone: 'wet', from: 10440, to: 10470 },
+  { zone: 'oil', from: 10470, to: 10510 },
+  { zone: 'gas', from: 10510, to: 10540 },
+  { zone: 'shale', from: 10540, to: 10580 },
 ];
 
-export const AdvancedLogs: React.FC = () => {
-  const [activeLog, setActiveLog] = useState(0);
-  const [showInterpretation, setShowInterpretation] = useState(false);
+const META: Record<Zone, { label: string; note: string }> = {
+  shale: { label: 'Shale', note: 'High GR, low Rt, no useful porosity. Seal / source, not pay.' },
+  wet: {
+    label: 'Wet sand',
+    note: 'Low GR, low Rt (saline water), density ≈ 2.25 and neutron tracks it. Porous, not hydrocarbon.',
+  },
+  oil: {
+    label: 'Oil sand',
+    note: 'Low GR, high Rt. Density and neutron overlay in liquid-filled pore space.',
+  },
+  gas: {
+    label: 'Gas sand',
+    note: 'Low GR, high Rt, density-neutron crossover: RHOB reads light, NPHI reads low. Classic gas effect.',
+  },
+};
 
-  const currentLog = logTypes[activeLog];
+function zoneAt(md: number): Zone {
+  return ZONES.find((z) => md >= z.from && md < z.to)?.zone ?? 'shale';
+}
+
+function sample(md: number): Sample {
+  const zone = zoneAt(md);
+  const n = Math.sin(md * 0.5) * 0.4;
+  if (zone === 'shale') return { md, zone, gr: 130 + n * 8, rt: 1.4, rhob: 2.55, nphi: 0.28 };
+  if (zone === 'wet') return { md, zone, gr: 38 + n * 4, rt: 0.8, rhob: 2.28, nphi: 0.24 };
+  if (zone === 'oil') return { md, zone, gr: 30 + n * 3, rt: 48, rhob: 2.22, nphi: 0.2 };
+  return { md, zone, gr: 26 + n * 3, rt: 80, rhob: 2.05, nphi: 0.08 };
+}
+
+const MDS = Array.from({ length: 46 }, (_, i) => 10400 + i * 4);
+
+export const AdvancedLogs: React.FC = () => {
+  const [pick, setPick] = useState(10488);
+  const log = useMemo(() => MDS.map(sample), []);
+  const live = sample(pick);
+  const meta = META[live.zone];
+
+  const H = 150;
+  const col = 58;
+  const yOf = (md: number) => ((md - 10400) / 180) * (H - 8) + 4;
+
+  const path = (vals: number[], min: number, max: number, x0: number) =>
+    log
+      .map((s, i) => {
+        const t = (vals[i] - min) / (max - min);
+        const x = x0 + t * (col - 8);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${yOf(s.md).toFixed(1)}`;
+      })
+      .join(' ');
 
   return (
-    <div className="instrument overflow-hidden relative">
-      {/* Background Grid Accent */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-
-      <div className="relative flex flex-col gap-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="instrument-icon">
-              <Layers className="text-blue-500" size={24} />
-            </div>
-            <div>
-              <h3 className="instrument-title">Advanced Formation Evaluation</h3>
-              <p className="text-xs text-zinc-500 font-medium tracking-wide">LWD Multi-Sensor Interpretation</p>
-            </div>
+    <div className="instrument space-y-3">
+      <div className="instrument-header mb-0">
+        <div className="instrument-title-row">
+          <div className="instrument-icon">
+            <Layers size={16} />
           </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setShowInterpretation(!showInterpretation)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border ${
-                showInterpretation ? 'instrument-btn is-active' : 'instrument-btn'
-              }`}
-            >
-              {showInterpretation ? 'Hide Interpretation' : 'Show Interpretation'}
-            </button>
+          <div>
+            <h3 className="instrument-title">Advanced LWD Logs</h3>
+            <p className="instrument-subtitle">GR · Rt · RHOB · NPHI</p>
           </div>
         </div>
+        <span className="instrument-chip">{meta.label}</span>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar Navigation */}
-          <div className="lg:col-span-4 space-y-2">
-            {logTypes.map((log, i) => (
-              <button
-                key={log.id}
-                onClick={() => setActiveLog(i)}
-                className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-4 border ${
-                  activeLog === i 
-                    ? 'bg-emerald-500 border-emerald-500 text-zinc-950 shadow-none' 
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
-                }`}
-              >
-                <div className={`p-2 rounded-xl ${activeLog === i ? log.bg : 'bg-zinc-900'}`}>
-                  <log.icon size={20} className={activeLog === i ? log.color : 'text-zinc-600'} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Sensor Type</p>
-                  <p className="font-bold">{log.title}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Main Content Area */}
-          <div className="lg:col-span-8 instrument-panel">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeLog}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <h4 className="instrument-title">{currentLog.title}</h4>
-                    <p className="text-sm text-zinc-400 leading-relaxed">{currentLog.description}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="instrument-metric-label">Unit</p>
-                    <p className="text-2xl font-mono text-white">{currentLog.unit}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(currentLog.typicalValues).map(([key, value]) => (
-                    <div key={key} className="instrument-metric space-y-1">
-                      <p className="instrument-metric-label">{key}</p>
-                      <p className="text-lg font-mono text-white">{value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Simulated Log Chart */}
-                <div className="instrument-panel h-40 relative overflow-hidden">
-                  <svg className="w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
-                    <path 
-                      d={`M ${[...Array(40)].map((_, i) => `${i * 10},${50 + (Math.random() - 0.5) * 40}`).join(' L ')}`}
-                      fill="none"
-                      stroke={currentLog.id === 'gamma' ? '#10b981' : currentLog.id === 'resistivity' ? '#f59e0b' : '#3b82f6'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="opacity-50"
-                    />
-                    <motion.path 
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 1 }}
-                      d={`M ${[...Array(40)].map((_, i) => `${i * 10},${50 + (Math.random() - 0.5) * 40}`).join(' L ')}`}
-                      fill="none"
-                      stroke={currentLog.id === 'gamma' ? '#10b981' : currentLog.id === 'resistivity' ? '#f59e0b' : '#3b82f6'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <div className="absolute top-2 right-2 text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Real-Time Sensor Stream</div>
-                </div>
-
-                {showInterpretation && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="instrument-tip text-emerald-400/90"
-                  >
-                    <ShieldCheck size={20} />
-                    <p className="text-xs font-medium leading-relaxed">
-                      <span className="text-white font-bold">Interpretation:</span> {
-                        currentLog.id === 'resistivity' 
-                          ? 'High resistivity in a low gamma zone indicates potential hydrocarbons. Low resistivity indicates saltwater.'
-                          : currentLog.id === 'density'
-                          ? 'Density-Neutron "crossover" is a classic indicator of gas-bearing formations.'
-                          : 'Gamma ray is your primary lithology indicator, used to correlate all other LWD measurements.'
-                      }
-                    </p>
-                  </motion.div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+      <div className="rounded-xl border border-white/10 bg-[#07080a] p-2">
+        <div className="grid grid-cols-4 text-[8px] text-zinc-500 font-mono px-1 mb-1">
+          <span>GR</span>
+          <span>Rt</span>
+          <span>RHOB</span>
+          <span>NPHI</span>
         </div>
+        <svg
+          viewBox="0 0 240 150"
+          className="w-full h-40 cursor-crosshair"
+          onClick={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            const y = ((e.clientY - box.top) / box.height) * 150;
+            const md = 10400 + ((y - 4) / 142) * 180;
+            setPick(Math.max(10400, Math.min(10576, md)));
+          }}
+        >
+          <path d={path(log.map((s) => s.gr), 0, 160, 2)} fill="none" stroke="#10b981" strokeWidth="1.3" />
+          <path d={path(log.map((s) => Math.log10(s.rt)), -0.4, 2.1, 62)} fill="none" stroke="#f59e0b" strokeWidth="1.3" />
+          <path d={path(log.map((s) => s.rhob), 1.9, 2.7, 122)} fill="none" stroke="#60a5fa" strokeWidth="1.3" />
+          <path d={path(log.map((s) => s.nphi), 0, 0.4, 182)} fill="none" stroke="#c084fc" strokeWidth="1.3" />
+          <line x1="0" x2="240" y1={yOf(pick)} y2={yOf(pick)} stroke="#fafafa" strokeOpacity="0.25" />
+        </svg>
+        <p className="text-[9px] text-zinc-500 px-1">Tap a depth. RHOB and NPHI are plotted so gas crossover is visible.</p>
+      </div>
 
-        <div className="instrument-tip flex items-center gap-4">
-          <div className="p-2 bg-zinc-800 rounded-xl">
-            <AlertTriangle className="text-zinc-500" size={20} />
+      <div className="grid grid-cols-4 gap-1.5">
+        {[
+          { l: 'GR', v: `${live.gr.toFixed(0)} API` },
+          { l: 'Rt', v: `${live.rt.toFixed(1)} Ω·m` },
+          { l: 'RHOB', v: `${live.rhob.toFixed(2)} g/cm³` },
+          { l: 'NPHI', v: `${(live.nphi * 100).toFixed(0)} pu` },
+        ].map((m) => (
+          <div key={m.l} className="rounded-lg border border-white/10 bg-[#07080a] px-1.5 py-1.5">
+            <p className="label-caps">{m.l}</p>
+            <p className="text-[11px] font-mono text-zinc-100 tabular-nums">{m.v}</p>
           </div>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            <span className="text-white font-bold">MWD Pro Tip:</span> Advanced LWD sensors like Density and Neutron require specific mud properties and tool rotation for accurate readings. Always check your sensor QC channels.
-          </p>
-        </div>
+        ))}
+      </div>
+
+      <div className="instrument-tip">
+        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
+        <p>
+          {live.md.toFixed(0)} ft — {meta.note}
+        </p>
       </div>
     </div>
   );

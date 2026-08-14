@@ -1,206 +1,168 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as d3 from 'd3';
-import { motion } from 'motion/react';
-import { Compass, Magnet, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Gauge, Info } from 'lucide-react';
+
+const B_REF = 52140;
+const DIP_REF = 66.4;
+const G_REF = 1;
+
+function toRad(d: number) {
+  return (d * Math.PI) / 180;
+}
+function toDeg(r: number) {
+  return (r * 180) / Math.PI;
+}
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
+
+function field(inc: number, azi: number, bAxial: number, bCross: number) {
+  const I = toRad(inc);
+  const A = toRad(azi);
+  const dip = toRad(DIP_REF);
+  const Bn = B_REF * Math.cos(dip);
+  const Bd = B_REF * Math.sin(dip);
+
+  let Bx = Bn * Math.cos(I) * Math.cos(A) - Bd * Math.sin(I);
+  let By = -Bn * Math.sin(A);
+  let Bz = Bn * Math.sin(I) * Math.cos(A) + Bd * Math.cos(I);
+
+  Bz += bAxial;
+  Bx += bCross;
+
+  const btot = Math.hypot(Bx, By, Bz);
+  const Gx = Math.sin(I);
+  const Gz = Math.cos(I);
+  const aziMeas = toDeg(Math.atan2(-By, Bx * Gz + Bz * Gx));
+  const aziNorm = ((aziMeas % 360) + 360) % 360;
+  const cosMagInc = clamp((Gx * Bx + Gz * Bz) / (G_REF * btot), -1, 1);
+  const dipMeas = 90 - toDeg(Math.acos(cosMagInc));
+
+  return {
+    btot,
+    dip: dipMeas,
+    azi: aziNorm,
+    dB: btot - B_REF,
+    dDip: dipMeas - DIP_REF,
+    dAzi: ((aziNorm - azi + 540) % 360) - 180,
+  };
+}
+
+function status(dB: number, dDip: number) {
+  if (Math.abs(dB) > 400 || Math.abs(dDip) > 0.6) {
+    return { label: 'Reject', cls: 'text-red-400', bar: '#ef4444' };
+  }
+  if (Math.abs(dB) > 200 || Math.abs(dDip) > 0.3) {
+    return { label: 'Watch', cls: 'text-amber-400', bar: '#f59e0b' };
+  }
+  return { label: 'Pass', cls: 'text-emerald-400', bar: '#10b981' };
+}
 
 export const MagneticInterference: React.FC = () => {
-  const [axialInterference, setAxialInterference] = useState(0);
-  const [crossAxialInterference, setCrossAxialInterference] = useState(0);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const [inc, setInc] = useState(72);
+  const [azi, setAzi] = useState(135);
+  const [bAxial, setBAxial] = useState(0);
+  const [bCross, setBCross] = useState(0);
 
-  const width = 300;
-  const height = 300;
-  const radius = 120;
-  const center = { x: width / 2, y: height / 2 };
+  const m = useMemo(() => field(inc, azi, bAxial, bCross), [inc, azi, bAxial, bCross]);
+  const st = status(m.dB, m.dDip);
 
-  useEffect(() => {
-    if (!svgRef.current) return;
+  const scale = 42 / B_REF;
+  const trueX = (B_REF * Math.cos(toRad(DIP_REF))) * scale;
+  const trueY = -(B_REF * Math.sin(toRad(DIP_REF))) * scale;
+  const measX = trueX + bCross * scale * 0.9;
+  const measY = trueY - bAxial * scale * 0.35;
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
-
-    const g = svg.append('g')
-      .attr('transform', `translate(${center.x}, ${center.y})`);
-
-    // Background Circle
-    g.append('circle')
-      .attr('r', radius)
-      .attr('fill', '#18181b')
-      .attr('stroke', '#27272a')
-      .attr('stroke-width', 2);
-
-    // Grid lines
-    g.append('line')
-      .attr('x1', -radius).attr('y1', 0).attr('x2', radius).attr('y2', 0)
-      .attr('stroke', '#3f3f46').attr('stroke-dasharray', '4,4');
-    g.append('line')
-      .attr('x1', 0).attr('y1', -radius).attr('x2', 0).attr('y2', radius)
-      .attr('stroke', '#3f3f46').attr('stroke-dasharray', '4,4');
-
-    // True Magnetic Vector (Ideal)
-    const trueAngle = -45; // 45 degrees NE
-    const trueX = radius * 0.8 * Math.cos(trueAngle * Math.PI / 180);
-    const trueY = radius * 0.8 * Math.sin(trueAngle * Math.PI / 180);
-
-    // Arrowhead definition
-    svg.append('defs').append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '0 0 10 10')
-      .attr('refX', '5')
-      .attr('refY', '5')
-      .attr('markerWidth', '6')
-      .attr('markerHeight', '6')
-      .attr('orient', 'auto-start-reverse')
-      .append('path')
-      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-      .attr('fill', '#10b981');
-
-    svg.select('defs').append('marker')
-      .attr('id', 'arrowhead-distorted')
-      .attr('viewBox', '0 0 10 10')
-      .attr('refX', '5')
-      .attr('refY', '5')
-      .attr('markerWidth', '6')
-      .attr('markerHeight', '6')
-      .attr('orient', 'auto-start-reverse')
-      .append('path')
-      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-      .attr('fill', '#ef4444');
-
-    // True Vector Line
-    g.append('line')
-      .attr('x1', 0).attr('y1', 0).attr('x2', trueX).attr('y2', trueY)
-      .attr('stroke', '#10b981')
-      .attr('stroke-width', 3)
-      .attr('marker-end', 'url(#arrowhead)');
-
-    // Distorted Vector Calculation
-    // Axial interference shifts the vector along the tool axis (Y-axis in this 2D view)
-    // Cross-axial interference shifts it perpendicular (X-axis)
-    const distortedX = trueX + (crossAxialInterference * 50);
-    const distortedY = trueY + (axialInterference * 50);
-
-    // Distorted Vector Line
-    g.append('line')
-      .attr('x1', 0).attr('y1', 0).attr('x2', distortedX).attr('y2', distortedY)
-      .attr('stroke', '#ef4444')
-      .attr('stroke-width', 3)
-      .attr('marker-end', 'url(#arrowhead-distorted)');
-
-    // Labels
-    g.append('text')
-      .attr('x', 0).attr('y', -radius - 10)
-      .attr('text-anchor', 'middle')
-      .attr('fill', '#71717a')
-      .attr('font-size', '10px')
-      .attr('font-weight', 'bold')
-      .text('N');
-
-    // Tool Axis Label
-    g.append('text')
-      .attr('x', radius + 10).attr('y', 0)
-      .attr('text-anchor', 'start')
-      .attr('fill', '#71717a')
-      .attr('font-size', '10px')
-      .attr('font-weight', 'bold')
-      .text('E');
-
-  }, [axialInterference, crossAxialInterference]);
-
-  const totalInterference = Math.sqrt(axialInterference**2 + crossAxialInterference**2);
-  const isSevere = totalInterference > 0.5;
+  const tip =
+    Math.abs(m.dAzi) < 0.2 && st.label === 'Pass'
+      ? 'Clean field. Btot and dip sit on the IGRF reference. This is the station you keep.'
+      : bAxial > 400
+        ? 'Axial steel (motor, collars) is adding field along the tool. At high inclination that rotates azimuth. Add NMDC or apply MSA — do not “nudge” the azimuth by hand.'
+        : bCross > 150
+          ? 'Cross-axial hotspot (stab, junk, magnetized collar). Btot moves and the horizontal field tilts. Rotate the pipe and retake; if it walks, the steel is too close.'
+          : 'You are in the watch band. One more station. If Btot stays off, the BHA spacing is wrong.';
 
   return (
-    <div className="instrument">
-      <div className="flex flex-col lg:flex-row gap-8 items-center">
-        {/* Visualization */}
-        <div className="relative">
-          <svg 
-            ref={svgRef} 
-            width={width} 
-            height={height} 
-            className="drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]"
-          />
-          
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full" />
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">True Magnetic Field</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full" />
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Measured Field</span>
-            </div>
+    <div className="instrument space-y-3">
+      <div className="instrument-header mb-0">
+        <div className="instrument-title-row">
+          <div className="instrument-icon">
+            <Gauge size={16} />
+          </div>
+          <div>
+            <h3 className="instrument-title">Magnetic Interference</h3>
+            <p className="instrument-subtitle">
+              Ref {B_REF.toLocaleString()} nT · dip {DIP_REF}°
+            </p>
           </div>
         </div>
+        <span className={`instrument-chip ${st.cls}`}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.bar }} />
+          {st.label}
+        </span>
+      </div>
 
-        {/* Controls */}
-        <div className="flex-1 w-full space-y-8">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Axial Interference</label>
-                <span className={`text-xs font-mono px-2 py-0.5 rounded ${axialInterference !== 0 ? 'bg-red-500/20 text-red-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                  {(axialInterference * 100).toFixed(0)} nT
-                </span>
-              </div>
-              <input 
-                type="range" 
-                min="-1" 
-                max="1" 
-                step="0.1" 
-                value={axialInterference}
-                onChange={(e) => setAxialInterference(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-              <p className="text-[10px] text-zinc-500 uppercase tracking-tighter">Caused by long ferrous components (drill collars, motors) along the tool axis.</p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Cross-Axial Interference</label>
-                <span className={`text-xs font-mono px-2 py-0.5 rounded ${crossAxialInterference !== 0 ? 'bg-red-500/20 text-red-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                  {(crossAxialInterference * 100).toFixed(0)} nT
-                </span>
-              </div>
-              <input 
-                type="range" 
-                min="-1" 
-                max="1" 
-                step="0.1" 
-                value={crossAxialInterference}
-                onChange={(e) => setCrossAxialInterference(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-              <p className="text-[10px] text-zinc-500 uppercase tracking-tighter">Caused by nearby stabilizers or magnetic hotspots perpendicular to the tool axis.</p>
-            </div>
-          </div>
-
-          {/* Status Card */}
-          <motion.div 
-            animate={{ 
-              backgroundColor: isSevere ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-              borderColor: isSevere ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'
-            }}
-            className="p-4 rounded-xl border flex items-start gap-4"
-          >
-            {isSevere ? (
-              <AlertTriangle className="text-red-500 shrink-0" size={24} />
-            ) : (
-              <CheckCircle2 className="text-emerald-500 shrink-0" size={24} />
-            )}
-            <div>
-              <h4 className={`text-sm font-bold uppercase tracking-widest ${isSevere ? 'text-red-500' : 'text-emerald-500'}`}>
-                {isSevere ? 'Severe Interference Detected' : 'Survey Quality: Good'}
-              </h4>
-              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                {isSevere 
-                  ? 'The measured magnetic field deviates significantly from the true field. Azimuth readings will be inaccurate. Consider MSA or IFR corrections.'
-                  : 'Magnetic interference is within acceptable limits. Azimuth data is reliable for directional steering.'}
-              </p>
-            </div>
-          </motion.div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-white/10 bg-[#07080a] p-2 flex items-center justify-center">
+          <svg viewBox="-50 -50 100 100" className="w-full h-36">
+            <circle r="46" fill="none" stroke="#27272a" />
+            <line x1="-46" x2="46" y1="0" y2="0" stroke="#27272a" />
+            <line x1="0" x2="0" y1="-46" y2="46" stroke="#27272a" />
+            <line x1="0" y1="0" x2={trueX} y2={trueY} stroke="#10b981" strokeWidth="2" />
+            <line x1="0" y1="0" x2={measX} y2={measY} stroke="#ef4444" strokeWidth="2" />
+            <text x="0" y="-40" textAnchor="middle" fill="#71717a" fontSize="7">
+              vertical
+            </text>
+          </svg>
         </div>
+        <div className="grid grid-cols-1 gap-1.5">
+          {[
+            { l: 'Btot', v: `${Math.round(m.btot)} nT`, d: `${m.dB >= 0 ? '+' : ''}${m.dB.toFixed(0)}` },
+            { l: 'Dip', v: `${m.dip.toFixed(2)}°`, d: `${m.dDip >= 0 ? '+' : ''}${m.dDip.toFixed(2)}°` },
+            { l: 'Azi error', v: `${m.dAzi >= 0 ? '+' : ''}${m.dAzi.toFixed(2)}°`, d: 'vs plan' },
+          ].map((row) => (
+            <div key={row.l} className="rounded-lg border border-white/10 bg-[#07080a] px-2 py-1.5">
+              <p className="label-caps">{row.l}</p>
+              <p className="text-sm font-mono text-zinc-100 tabular-nums leading-tight">{row.v}</p>
+              <p className="text-[10px] text-zinc-500 font-mono">{row.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {[
+          { l: 'Inc', v: inc, min: 0, max: 90, set: setInc, fmt: `${inc}°` },
+          { l: 'Azi', v: azi, min: 0, max: 359, set: setAzi, fmt: `${azi}°` },
+          { l: 'Axial', v: bAxial, min: 0, max: 2500, set: setBAxial, fmt: `${bAxial} nT` },
+          { l: 'X-ax', v: bCross, min: 0, max: 800, set: setBCross, fmt: `${bCross} nT` },
+        ].map((s) => (
+          <label key={s.l} className="flex items-center gap-3">
+            <span className="label-caps w-10 shrink-0">{s.l}</span>
+            <input
+              type="range"
+              min={s.min}
+              max={s.max}
+              value={s.v}
+              onChange={(e) => s.set(Number(e.target.value))}
+              className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+            <span className="w-16 text-right text-[11px] font-mono text-zinc-300 tabular-nums">{s.fmt}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="flex gap-3 text-[10px] text-zinc-500">
+        <span className="flex items-center gap-1">
+          <span className="h-1.5 w-3 bg-emerald-500" /> Earth field
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-1.5 w-3 bg-red-500" /> Measured
+        </span>
+      </div>
+
+      <div className="instrument-tip">
+        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
+        <p>{tip}</p>
       </div>
     </div>
   );
