@@ -30,6 +30,8 @@ interface JointSpec {
 interface Assembly {
   id: AssemblyId;
   label: string;
+  tag: string;
+  accent: string;
   purpose: string;
   goals: string;
   functions: string;
@@ -40,6 +42,8 @@ const ASSEMBLIES: Assembly[] = [
   {
     id: 'motor',
     label: 'Motor MWD',
+    tag: 'Slide. Rotate. Pulse.',
+    accent: '#fb923c',
     purpose: 'Build and hold a land well on mud with slide/rotate.',
     goals: 'Get honest surveys, hold toolface on the slide, and keep a gamma log for correlation.',
     functions: 'Positive-pulse telemetry, MTF/GTF, GR. Cheap, common, and what most curve hands still run.',
@@ -119,6 +123,8 @@ const ASSEMBLIES: Assembly[] = [
   {
     id: 'lwd',
     label: 'Motor + LWD',
+    tag: 'Land. Stay in zone.',
+    accent: '#f472b6',
     purpose: 'Land and stay in zone — lithology plus resistivity, still motor-steered.',
     goals: 'Pick bed boundaries and fluid change while you build and hold. GR alone is not enough when the sand looks like the shale on counts.',
     functions: 'Same pulse MWD as the motor string, plus a resistivity collar for Rt. Used on landings and laterals that pay on thickness.',
@@ -208,6 +214,8 @@ const ASSEMBLIES: Assembly[] = [
   {
     id: 'rss',
     label: 'RSS MWD',
+    tag: 'Steer while rotating.',
+    accent: '#f43f5e',
     purpose: 'Steer a 3D well while rotating — no slides.',
     goals: 'Hold a tight TVD window in the lateral and walk azimuth without orienting a bend.',
     functions: 'Rotary steerable points the bit under rotation. MWD still surveys and pulses. Used when slide ROP or hole quality will not fly.',
@@ -287,6 +295,8 @@ const ASSEMBLIES: Assembly[] = [
   {
     id: 'em',
     label: 'EM MWD',
+    tag: 'When mud cannot talk.',
+    accent: '#22d3ee',
     purpose: 'Get surveys when mud pulse cannot — air, foam, LCM, or lost returns.',
     goals: 'Decode a signal at the surface stakes when there is no continuous mud column to carry a pulse.',
     functions: 'Electromagnetic telemetry through the formation. Same directional and gamma. No poppet. Used on underbalanced and some surface-hole sections.',
@@ -395,7 +405,7 @@ function JointIcon({
       <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
         <g fill="none" stroke={color} strokeWidth="1.7" style={{ filter: glow }}>
           <path
-            d={`M${18 + r} ${top} H${38 - r} Q38 ${top} 38 ${top + r} V${bot - r} Q38 ${bot} ${38 - r} ${bot} H${18 + r} Q18 ${bot} 18 ${bot - r} V${top + r} Q18 ${top} ${18 + r} ${top} Z`}
+            d={`M${12 + r} ${top} H${44 - r} Q44 ${top} 44 ${top + r} V${bot - r} Q44 ${bot} ${44 - r} ${bot} H${12 + r} Q12 ${bot} 12 ${bot - r} V${top + r} Q12 ${top} ${12 + r} ${top} Z`}
             vectorEffect="non-scaling-stroke"
           />
         </g>
@@ -439,6 +449,25 @@ function JointIcon({
   );
 }
 
+function MiniStack({ joints }: { joints: JointSpec[] }) {
+  const max = Math.max(...joints.map((j) => j.ft));
+  return (
+    <span className="flex h-9 w-3.5 flex-col justify-between" aria-hidden>
+      {joints.map((j, i) => (
+        <span
+          key={`${j.id}-${i}`}
+          className="mx-auto w-full rounded-[1px]"
+          style={{
+            height: `${Math.max(2, (j.ft / max) * 7)}px`,
+            background: j.color,
+            boxShadow: `0 0 5px ${j.color}88`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export const ToolArchitecture: React.FC = () => {
   const [assemblyId, setAssemblyId] = useState<AssemblyId>('motor');
   const [jointIndex, setJointIndex] = useState(2);
@@ -478,47 +507,88 @@ export const ToolArchitecture: React.FC = () => {
       : selected.body;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="instrument-title">Tool Architecture</h3>
-          <p className="instrument-subtitle">{total.toFixed(0)} ft BHA · {assembly.label}</p>
+    <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <p className="label-caps text-zinc-500">Sim lab</p>
+        <h3 className="instrument-title mt-1">Tool Architecture</h3>
+        <p className="mt-2 text-[13px] leading-relaxed text-zinc-300">
+          Different BHAs serve different purposes. Here are a few to pick from.
+        </p>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-500">
+          Walk the string from NMDC to bit. The notes change with the recipe — same joint,
+          different reason it is there.
+        </p>
+      </motion.div>
+
+      <div>
+        {ASSEMBLIES.map((a, i) => {
+          const on = assemblyId === a.id;
+          return (
+            <motion.button
+              key={a.id}
+              type="button"
+              onClick={() => pickAssembly(a.id)}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.08 + i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex w-full items-center gap-3 py-2.5 text-left"
+            >
+              <MiniStack joints={a.joints} />
+              <span className="min-w-0 flex-1">
+                <span
+                  className="block text-[13px] font-semibold"
+                  style={{ color: on ? a.accent : '#fafafa' }}
+                >
+                  {a.label}
+                </span>
+                <span className={`block text-[11px] ${on ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                  {a.tag}
+                </span>
+              </span>
+              {on && (
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: a.accent, boxShadow: `0 0 10px ${a.accent}` }}
+                />
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <div
+        className="border-l-2 pl-3"
+        style={{
+          borderColor: assembly.accent,
+          boxShadow: `-6px 0 18px ${assembly.accent}33`,
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] leading-relaxed text-zinc-100">{assembly.purpose}</p>
+          <span className={`instrument-chip shrink-0 ${magOk ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                background: magOk ? '#34d399' : '#f87171',
+                boxShadow: magOk ? '0 0 8px #34d399' : '0 0 8px #f87171',
+              }}
+            />
+            {magOk ? 'Spacing hold' : 'Btot fail'}
+          </span>
         </div>
-        <span className={`instrument-chip ${magOk ? 'text-emerald-400' : 'text-red-400'}`}>
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{
-              background: magOk ? '#34d399' : '#f87171',
-              boxShadow: magOk ? '0 0 8px #34d399' : '0 0 8px #f87171',
-            }}
-          />
-          {magOk ? 'Spacing hold' : 'Btot fail'}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-1">
-        {ASSEMBLIES.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => pickAssembly(a.id)}
-            className={`instrument-btn ${assemblyId === a.id ? 'is-active' : ''}`}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-1 text-[12px] leading-relaxed">
-        <p className="text-zinc-200">{assembly.purpose}</p>
-        <p className="text-zinc-400">
+        <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
           <span className="text-zinc-500">Goal. </span>
           {assembly.goals}
         </p>
-        <p className="text-zinc-400">
+        <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">
           <span className="text-zinc-500">Does. </span>
           {assembly.functions}
         </p>
+        <p className="mt-1 font-mono text-[11px] tabular-nums text-zinc-500">{total.toFixed(0)} ft BHA</p>
       </div>
 
       <div className="flex gap-1">
@@ -556,7 +626,7 @@ export const ToolArchitecture: React.FC = () => {
               className="flex w-full items-stretch text-left"
               style={{ height: px }}
             >
-              <span className="relative h-full w-16 shrink-0">
+              <span className="relative h-full w-20 shrink-0">
                 <JointIcon
                   kind={joint.id}
                   color={joint.color}
@@ -584,7 +654,7 @@ export const ToolArchitecture: React.FC = () => {
                         aria-hidden
                       >
                         <motion.path
-                          d="M 0 50 H 8 V 8 H 59 V 22"
+                          d="M 0 50 H 14 V 10 H 58 V 26"
                           fill="none"
                           stroke={joint.color}
                           strokeWidth="1.4"
@@ -599,7 +669,7 @@ export const ToolArchitecture: React.FC = () => {
                         />
                       </svg>
                       <motion.span
-                        className="absolute left-[18%] right-0 top-[24%]"
+                        className="absolute left-[46%] right-0 top-[28%]"
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
