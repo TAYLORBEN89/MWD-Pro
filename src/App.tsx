@@ -592,8 +592,8 @@ export default function App() {
                     <div className="space-y-10 pt-2">
                       {currentSection.id === 'section-2' && (
                         <div className="mt-6 space-y-4">
-                          <h3 className="text-lg title-display">Interactive Vibration Monitor</h3>
-                          <p className="body-muted">Change RPM and WOB to drive bit bounce, whirl, and stick-slip — and watch tool electronics take the hit.</p>
+                          <h3 className="text-lg title-display">Vibration Monitor</h3>
+                          <p className="body-muted">Diagnose the stand, change RPM / WOB / flow, and take a clean survey before the tool dies.</p>
                           <VibrationMonitor />
                         </div>
                       )}
@@ -672,8 +672,8 @@ export default function App() {
 
                       {currentSection.id === 'section-11' && (
                         <div className="mt-6 space-y-4">
-                          <h3 className="text-lg title-display">Vibration & Dynamics Monitor</h3>
-                          <p className="body-muted">Monitor axial, lateral, and torsional vibration to identify downhole dysfunctions like stick-slip and whirl.</p>
+                          <h3 className="text-lg title-display">Vibration Monitor</h3>
+                          <p className="body-muted">Diagnose bounce, whirl, and stick-slip. Save the tool and take a station only when the hole is quiet.</p>
                           <VibrationMonitor />
                         </div>
                       )}

@@ -52,7 +52,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'vibration',
     title: 'Vibration Monitor',
-    subtitle: 'Bit bounce, whirl, and stick-slip',
+    subtitle: 'Kill bounce, whirl, and stick-slip',
     isFree: true,
     sectionId: 'section-2',
     icon: Activity,
