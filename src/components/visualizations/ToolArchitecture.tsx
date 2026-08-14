@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 type ModuleId = 'bit' | 'motor' | 'pulser' | 'battery' | 'directional' | 'gamma' | 'nmdc';
 type Spacing = 'standard' | 'short';
@@ -103,15 +103,14 @@ export const ToolArchitecture: React.FC = () => {
   const selected = META[id];
   const selectedFt = ft[id];
 
-  const laid = useMemo(() => {
-    let y = 8;
-    return ORDER.map((key) => {
-      const h = (ft[key] / total) * 196;
-      const row = { key, y, h };
-      y += h;
-      return row;
-    });
-  }, [ft, total]);
+  const laid = useMemo(
+    () =>
+      ORDER.map((key) => {
+        const len = ft[key];
+        return { key, len, px: Math.max(72, len * 12) };
+      }),
+    [ft]
+  );
 
   const tip = !magOk
     ? 'You shorted the NMDC to save BHA length. Gravity will still pass. Magnetic will not. The first rotating survey is already dead.'
@@ -126,16 +125,11 @@ export const ToolArchitecture: React.FC = () => {
             : selected.note;
 
   return (
-    <div className="instrument space-y-3">
-      <div className="instrument-header mb-0">
-        <div className="instrument-title-row">
-          <div className="instrument-icon">
-            <Box size={16} />
-          </div>
-          <div>
-            <h3 className="instrument-title">Tool Architecture</h3>
-            <p className="instrument-subtitle">6¾ in motor string · {total.toFixed(0)} ft BHA</p>
-          </div>
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3 px-5">
+        <div>
+          <h3 className="instrument-title">Tool Architecture</h3>
+          <p className="instrument-subtitle">6¾ in motor string · {total.toFixed(0)} ft BHA</p>
         </div>
         <span className={`instrument-chip ${st.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.bar }} />
@@ -143,7 +137,7 @@ export const ToolArchitecture: React.FC = () => {
         </span>
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1 px-5">
         {(['standard', 'short'] as const).map((s) => (
           <button
             key={s}
@@ -156,118 +150,76 @@ export const ToolArchitecture: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex gap-2 rounded-xl border border-white/10 bg-[#07080a] p-2">
-        <div className="relative w-[88px] shrink-0 h-[212px]">
-          <svg viewBox="0 0 88 212" className="h-full w-full">
-            <defs>
-              <linearGradient id="collar" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#3f3f46" />
-                <stop offset="22%" stopColor="#a1a1aa" />
-                <stop offset="48%" stopColor="#52525b" />
-                <stop offset="100%" stopColor="#18181b" />
-              </linearGradient>
-              <linearGradient id="monel" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#57534e" />
-                <stop offset="28%" stopColor="#d6d3d1" />
-                <stop offset="55%" stopColor="#78716c" />
-                <stop offset="100%" stopColor="#1c1917" />
-              </linearGradient>
-              <linearGradient id="bore" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#09090b" />
-                <stop offset="50%" stopColor="#27272a" />
-                <stop offset="100%" stopColor="#09090b" />
-              </linearGradient>
-            </defs>
+      <p className="px-5 font-mono text-[12px] tabular-nums text-zinc-300">
+        Dir {dirStb.toFixed(0)} ft
+        <span className="text-zinc-600"> · </span>
+        GR {grStb.toFixed(0)} ft
+        <span className="text-zinc-600"> · </span>
+        <span className={magOk ? '' : 'text-red-400'}>NMDC {ft.nmdc} ft</span>
+      </p>
 
-            {laid.map((row) => {
-              const on = row.key === id;
-              const fill = row.key === 'nmdc' ? 'url(#monel)' : row.key === 'bit' ? '#71717a' : 'url(#collar)';
-              return (
-                <g key={row.key}>
-                  <rect x="28" y={row.y} width="32" height={Math.max(row.h - 0.6, 1.2)} rx="3.5" fill={fill} />
-                  <rect x="39" y={row.y + 0.8} width="10" height={Math.max(row.h - 2.2, 0.6)} rx="2" fill="url(#bore)" opacity="0.55" />
-                  {row.key === 'bit' && (
-                    <path d="M32 204 L44 210 L56 204 Z" fill="#a1a1aa" />
-                  )}
-                  {row.key === 'pulser' && (
-                    <rect x="36" y={row.y + row.h * 0.35} width="16" height="3" rx="1" fill="#09090b" />
-                  )}
-                  {row.key === 'directional' && (
-                    <>
-                      <circle cx="44" cy={row.y + row.h * 0.35} r="2.1" fill="#10b981" />
-                      <circle cx="44" cy={row.y + row.h * 0.68} r="2.1" fill="#3b82f6" />
-                    </>
-                  )}
-                  {on && (
-                    <rect
-                      x="26.5"
-                      y={row.y - 0.4}
-                      width="35"
-                      height={Math.max(row.h, 2)}
-                      rx="4"
-                      fill="none"
-                      stroke="#34d399"
-                      strokeWidth="1.4"
-                    />
-                  )}
-                </g>
-              );
-            })}
-            <text x="44" y="8" textAnchor="middle" fill="#52525b" fontSize="6">
-              uphole
-            </text>
-          </svg>
+      <div className="px-5">
+        <p className="text-sm font-semibold text-zinc-50">{selected.name}</p>
+        <p className="font-mono text-[11px] tabular-nums text-zinc-500">
+          {selected.od} · {selectedFt} ft · {fromBit(id, ft).toFixed(0)} ft from bit
+        </p>
+      </div>
 
-          {laid.map((row) => (
+      <div>
+        {laid.map((row, i) => {
+          const on = row.key === id;
+          const monel = row.key === 'nmdc';
+          return (
             <button
               key={row.key}
               type="button"
-              aria-label={META[row.key].name}
               onClick={() => setId(row.key)}
-              className="absolute left-0 right-0"
-              style={{
-                top: `${(row.y / 212) * 100}%`,
-                height: `${Math.max((row.h / 212) * 100, 9)}%`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-          <div>
-            <p className="text-[11px] font-mono text-zinc-500 tabular-nums">
-              {selected.od} · {selectedFt} ft
-            </p>
-            <p className="text-sm font-semibold text-zinc-50 leading-tight">{selected.name}</p>
-            <p className="mt-1 text-[12px] text-zinc-400 leading-relaxed">{selected.note}</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-1.5">
-            {[
-              { l: 'Dir → bit', v: `${dirStb.toFixed(0)} ft` },
-              { l: 'GR → bit', v: `${grStb.toFixed(0)} ft` },
-              { l: 'NMDC', v: `${ft.nmdc} ft`, hot: !magOk },
-            ].map((row) => (
-              <div
-                key={row.l}
-                className={`flex items-baseline justify-between rounded-lg border px-2 py-1.5 ${
-                  row.hot ? 'border-red-500/35 bg-red-500/10' : 'border-white/10 bg-black/30'
-                }`}
-              >
-                <span className="label-caps">{row.l}</span>
-                <span className={`text-[13px] font-mono tabular-nums ${row.hot ? 'text-red-300' : 'text-zinc-100'}`}>
-                  {row.v}
+              className="relative flex w-full items-center"
+              style={{ height: row.px }}
+            >
+              <span
+                className="absolute inset-0"
+                style={{
+                  background: monel
+                    ? 'linear-gradient(90deg,#44403c 0%,#d6d3d1 18%,#a8a29e 42%,#57534e 70%,#1c1917 100%)'
+                    : row.key === 'bit'
+                      ? 'linear-gradient(90deg,#52525b 0%,#d4d4d8 30%,#71717a 70%,#27272a 100%)'
+                      : 'linear-gradient(90deg,#3f3f46 0%,#c4c4cc 16%,#71717a 45%,#3f3f46 78%,#18181b 100%)',
+                  boxShadow: on ? 'inset 0 0 0 2px #34d399' : 'inset 0 1px 0 rgba(255,255,255,0.12)',
+                }}
+              />
+              <span
+                className="pointer-events-none absolute inset-y-3 left-[18%] right-[18%] rounded-sm"
+                style={{ background: 'linear-gradient(90deg,#09090b,#3f3f46,#09090b)', opacity: 0.35 }}
+              />
+              {row.key === 'pulser' && (
+                <span className="pointer-events-none absolute left-1/2 h-2.5 w-24 -translate-x-1/2 rounded-sm bg-black/70" />
+              )}
+              {row.key === 'directional' && (
+                <span className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 gap-6">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
                 </span>
-              </div>
-            ))}
-          </div>
-        </div>
+              )}
+              <span className="relative z-10 px-4 text-left">
+                <span className="block text-[13px] font-semibold text-zinc-50">{META[row.key].short}</span>
+                <span className="block font-mono text-[11px] text-zinc-300">{row.len} ft</span>
+              </span>
+              {i === 0 && (
+                <span className="relative z-10 ml-auto pr-4 font-mono text-[10px] text-zinc-400">uphole</span>
+              )}
+              {row.key === 'bit' && (
+                <span className="relative z-10 ml-auto pr-4 font-mono text-[10px] text-zinc-400">bit</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="instrument-tip">
-        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
-        <p>{tip}</p>
-      </div>
+      <p className="flex items-start gap-2 px-5 pb-2 text-xs leading-relaxed text-zinc-400">
+        <Info size={14} className="mt-0.5 shrink-0 text-zinc-500" />
+        {tip}
+      </p>
     </div>
   );
 };
