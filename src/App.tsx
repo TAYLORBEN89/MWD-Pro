@@ -1220,8 +1220,8 @@ export default function App() {
               )}
 
               {activeSimId && (
-                <div className="-mx-5 space-y-2">
-                  <div className="flex items-center justify-between gap-2 px-5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveSimId(null)}

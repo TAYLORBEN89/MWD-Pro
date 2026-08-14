@@ -126,7 +126,7 @@ export const ToolArchitecture: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3 px-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="instrument-title">Tool Architecture</h3>
           <p className="instrument-subtitle">6¾ in motor string · {total.toFixed(0)} ft BHA</p>
@@ -137,7 +137,7 @@ export const ToolArchitecture: React.FC = () => {
         </span>
       </div>
 
-      <div className="flex gap-1 px-5">
+      <div className="flex gap-1">
         {(['standard', 'short'] as const).map((s) => (
           <button
             key={s}
@@ -150,7 +150,7 @@ export const ToolArchitecture: React.FC = () => {
         ))}
       </div>
 
-      <p className="px-5 font-mono text-[12px] tabular-nums text-zinc-300">
+      <p className="font-mono text-[12px] tabular-nums text-zinc-300">
         Dir {dirStb.toFixed(0)} ft
         <span className="text-zinc-600"> · </span>
         GR {grStb.toFixed(0)} ft
@@ -158,14 +158,14 @@ export const ToolArchitecture: React.FC = () => {
         <span className={magOk ? '' : 'text-red-400'}>NMDC {ft.nmdc} ft</span>
       </p>
 
-      <div className="px-5">
+      <div>
         <p className="text-sm font-semibold text-zinc-50">{selected.name}</p>
         <p className="font-mono text-[11px] tabular-nums text-zinc-500">
           {selected.od} · {selectedFt} ft · {fromBit(id, ft).toFixed(0)} ft from bit
         </p>
       </div>
 
-      <div>
+      <div className="overflow-hidden rounded-xl">
         {laid.map((row, i) => {
           const on = row.key === id;
           const monel = row.key === 'nmdc';
@@ -216,7 +216,7 @@ export const ToolArchitecture: React.FC = () => {
         })}
       </div>
 
-      <p className="flex items-start gap-2 px-5 pb-2 text-xs leading-relaxed text-zinc-400">
+      <p className="flex items-start gap-2 pb-2 text-xs leading-relaxed text-zinc-400">
         <Info size={14} className="mt-0.5 shrink-0 text-zinc-500" />
         {tip}
       </p>
