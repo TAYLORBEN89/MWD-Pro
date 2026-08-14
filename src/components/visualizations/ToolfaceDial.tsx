@@ -580,20 +580,24 @@ export const ToolfaceDial: React.FC = () => {
     pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${plot.xOf(p).toFixed(1)},${plot.yOf(p).toFixed(1)}`).join(' ');
 
   const chip = stuck
-    ? { label: 'Stuck', cls: 'text-red-400', bar: '#ef4444' }
+    ? { label: 'Stuck', cls: 'text-[#e24b4a]', bar: '#e24b4a' }
     : phase === 'debrief'
       ? sc.total >= 75
-        ? { label: 'Send', cls: 'text-emerald-400', bar: '#34d399' }
-        : { label: 'Miss', cls: 'text-amber-400', bar: '#f59e0b' }
+        ? { label: 'Send', cls: 'text-[#3ecf8e]', bar: '#3ecf8e' }
+        : { label: 'Miss', cls: 'text-[#d4a017]', bar: '#d4a017' }
       : stationFlash
-        ? { label: 'Station', cls: 'text-amber-400', bar: '#f59e0b' }
+        ? { label: 'Station', cls: 'text-[#d4a017]', bar: '#d4a017' }
         : !playing
-          ? { label: 'Paused', cls: 'text-zinc-300', bar: '#a1a1aa' }
+          ? { label: 'Paused', cls: 'text-[#8a9099]', bar: '#8a9099' }
           : stuckRisk > 55
-            ? { label: 'Packoff risk', cls: 'text-red-400', bar: '#ef4444' }
+            ? { label: 'Packoff', cls: 'text-[#e24b4a]', bar: '#e24b4a' }
             : bit.dls > level.dlsLimit
-              ? { label: 'High DLS', cls: 'text-amber-400', bar: '#f59e0b' }
-              : { label: mode === 'slide' ? 'Sliding' : 'Rotating', cls: 'text-emerald-400', bar: '#34d399' };
+              ? { label: 'High DLS', cls: 'text-[#d4a017]', bar: '#d4a017' }
+              : {
+                  label: mode === 'slide' ? 'Sliding' : 'Rotating',
+                  cls: mode === 'slide' ? 'text-[#c47b3a]' : 'text-[#4d8ecf]',
+                  bar: mode === 'slide' ? '#c47b3a' : '#4d8ecf',
+                };
 
   const coach = (() => {
     if (phase === 'debrief') return debriefNotes[0];
@@ -609,34 +613,37 @@ export const ToolfaceDial: React.FC = () => {
 
   const ticks = tfRefMode === 'gtf' ? ['HS', 'R', 'LS', 'L'] : ['N', 'E', 'S', 'W'];
 
+  const faceColor = tfRefMode === 'gtf' ? '#3ecf8e' : '#4d8ecf';
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="label-caps text-zinc-500">Sim lab</p>
+          <p className="label-caps">Well control</p>
           <h3 className="instrument-title mt-1">Toolface Control</h3>
-          <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">{level.brief}</p>
+          <p className="mt-1.5 min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{level.brief}</p>
         </div>
-        <span className={`instrument-chip shrink-0 ${chip.cls}`}>
+        <span className={`hmi-lamp w-[5.6rem] shrink-0 justify-end ${chip.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
           {chip.label}
         </span>
       </div>
 
-      <div className="flex gap-1">
+      <div className="grid grid-cols-3 gap-1.5">
         {LEVELS.map((lvl) => (
           <button
             key={lvl.id}
             type="button"
             onClick={() => loadWell(lvl.id, true)}
-            className={`instrument-btn flex-1 px-1.5 ${levelId === lvl.id ? 'is-active' : ''}`}
+            className={`hmi-key ${levelId === lvl.id ? 'is-on' : ''}`}
+            style={levelId === lvl.id ? { borderColor: '#3ecf8e99', color: '#3ecf8e' } : undefined}
           >
             {lvl.name}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {(
           [
             ['profile', 'Profile'],
@@ -647,25 +654,15 @@ export const ToolfaceDial: React.FC = () => {
             key={id}
             type="button"
             onClick={() => setPlotView(id)}
-            className={`instrument-btn flex-1 ${plotView === id ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${plotView === id ? 'is-on' : ''}`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#07080a]">
-        <svg viewBox={`0 0 ${PW} ${PH}`} className="block h-auto w-full" role="img" aria-label="Live wellbore trajectory">
-          <defs>
-            <linearGradient id="tf-path" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#059669" />
-            </linearGradient>
-            <radialGradient id="tf-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#34d399" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-            </radialGradient>
-          </defs>
+      <div className="overflow-hidden border border-[#1d2026] bg-[#07080a]">
+        <svg viewBox={`0 0 ${PW} ${PH}`} className="block h-auto w-full overflow-hidden" role="img" aria-label="Live wellbore trajectory">
           <rect width={PW} height={PH} fill="#07080a" />
           {plot.yTicks.map((t) => (
             <g key={`y-${t}`}>
@@ -674,9 +671,9 @@ export const ToolfaceDial: React.FC = () => {
                 x2={PW - PAD.r}
                 y1={plot.yTickPos(t)}
                 y2={plot.yTickPos(t)}
-                stroke="rgba(255,255,255,0.06)"
+                stroke="#1d2026"
               />
-              <text x={PAD.l - 5} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#71717a" fontSize="8">
+              <text x={PAD.l - 5} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#5c636e" fontSize="8">
                 {Math.round(t)}
               </text>
             </g>
@@ -688,59 +685,69 @@ export const ToolfaceDial: React.FC = () => {
                 y2={PH - PAD.b}
                 x1={plot.xTickPos(t)}
                 x2={plot.xTickPos(t)}
-                stroke="rgba(255,255,255,0.04)"
+                stroke="#1d2026"
               />
-              <text x={plot.xTickPos(t)} y={PH - 7} textAnchor="middle" fill="#71717a" fontSize="8">
+              <text x={plot.xTickPos(t)} y={PH - 7} textAnchor="middle" fill="#5c636e" fontSize="8">
                 {Math.round(t)}
               </text>
             </g>
           ))}
-          <path d={pathOf(plan)} fill="none" stroke="#3f3f46" strokeWidth="1.4" strokeDasharray="4 3" />
-          <path d={pathOf(livePts)} fill="none" stroke="url(#tf-path)" strokeWidth="2" />
+          <path d={pathOf(plan)} fill="none" stroke="#2a2d33" strokeWidth="1.2" strokeDasharray="4 3" />
+          <path d={pathOf(livePts)} fill="none" stroke="#3ecf8e" strokeWidth="1.45" />
           {surveys.map((s) => (
-            <circle key={s.md} cx={plot.xOf(s)} cy={plot.yOf(s)} r="2" fill="#a1a1aa" />
+            <circle key={s.md} cx={plot.xOf(s)} cy={plot.yOf(s)} r="1.8" fill="#8a9099" />
           ))}
-          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="9" fill="url(#tf-glow)" />
-          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="2.6" fill="#fafafa" />
-          <text x={PAD.l} y={10} fill="#52525b" fontSize="8">
+          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="2.4" fill="#e6e8eb" />
+          <text x={PAD.l} y={10} fill="#5c636e" fontSize="8">
             {plot.yLabel}
           </text>
-          <text x={PW - PAD.r} y={PH - 7} textAnchor="end" fill="#52525b" fontSize="8">
+          <text x={PW - PAD.r} y={PH - 7} textAnchor="end" fill="#5c636e" fontSize="8">
             {plot.xLabel}
           </text>
         </svg>
       </div>
 
-      <div className="grid grid-cols-4 gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-300">
-        <span>MD {bit.md.toFixed(0)}</span>
-        <span>Inc {contInc.toFixed(1)}°</span>
-        <span>Azi {contAzi.toFixed(1)}°</span>
-        <span>TVD {bit.tvd.toFixed(0)}</span>
-        <span className={bit.dls > level.dlsLimit ? 'text-amber-400' : ''}>DLS {bit.dls.toFixed(1)}</span>
-        <span className={gtfUnreliable ? 'text-amber-400' : ''}>
-          {tfRefMode === 'gtf' ? 'GTF' : 'MTF'} {displayTf.toFixed(0)}°
-        </span>
-        <span>GR {grLive.toFixed(0)}</span>
-        <span>Rt {resLive.toFixed(1)}</span>
+      <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-y border-[#1d2026] py-2">
+        {[
+          { l: 'Inc', v: contInc.toFixed(1), u: '°', warn: Math.abs(dInc) > 3 },
+          { l: 'Azi', v: contAzi.toFixed(1), u: '°', warn: Math.abs(dAzi) > 4 },
+          { l: 'TVD', v: bit.tvd.toFixed(0), u: 'ft', warn: Math.abs(dTvd) > 12 },
+          { l: 'DLS', v: bit.dls.toFixed(1), u: '/100', warn: bit.dls > level.dlsLimit },
+        ].map((row) => (
+          <div key={row.l}>
+            <p className="label-caps">{row.l}</p>
+            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
+              {row.v}
+              <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
+            </p>
+          </div>
+        ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+      <div className="flex items-center justify-between gap-3 hmi-readout text-[11px] text-[#8a9099]">
         <span>
+          MD {bit.md.toFixed(0)}
+          <span className="text-[#5c636e]"> · </span>
+          {tfRefMode.toUpperCase()} {displayTf.toFixed(0)}°
+          <span className="text-[#5c636e]"> · </span>
           Δinc {dInc >= 0 ? '+' : ''}
-          {dInc.toFixed(1)}° · Δtvd {dTvd >= 0 ? '+' : ''}
-          {dTvd.toFixed(0)} · Δazi {dAzi >= 0 ? '+' : ''}
-          {dAzi.toFixed(1)}°
+          {dInc.toFixed(1)}°
+          <span className="text-[#5c636e]"> · </span>
+          Δtvd {dTvd >= 0 ? '+' : ''}
+          {dTvd.toFixed(0)}
+          <span className="text-[#5c636e]"> · </span>
+          GR {grLive.toFixed(0)}
         </span>
-        <svg viewBox="0 0 72 18" className="h-3.5 w-16 shrink-0" aria-hidden="true">
-          <path d={spark(grHist)} fill="none" stroke="#34d399" strokeWidth="1.2" />
+        <svg viewBox="0 0 72 18" className="h-3.5 w-16 shrink-0 overflow-hidden" aria-hidden="true">
+          <path d={spark(grHist)} fill="none" stroke="#3aa8b8" strokeWidth="1.1" />
         </svg>
       </div>
 
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-2">
         <svg
           ref={dialRef}
           viewBox="-48 -48 96 96"
-          className="h-44 w-44 shrink-0 touch-none cursor-crosshair select-none"
+          className="h-44 w-44 shrink-0 touch-none cursor-crosshair select-none overflow-hidden"
           role="slider"
           aria-label="Command toolface"
           aria-valuemin={0}
@@ -751,13 +758,8 @@ export const ToolfaceDial: React.FC = () => {
           onPointerUp={onDialUp}
           onPointerCancel={onDialUp}
         >
-          <circle r="44" fill="#07080a" stroke="#27272a" />
-          <circle
-            r="44"
-            fill="none"
-            stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'}
-            strokeOpacity={playing ? 0.35 : 0.16}
-          />
+          <circle r="44" fill="#07080a" stroke="#2a2d33" />
+          <circle r="44" fill="none" stroke={faceColor} strokeOpacity="0.28" />
           {ticks.map((lab, i) => {
             const a = toRad(i * 90 - 90);
             return (
@@ -766,7 +768,7 @@ export const ToolfaceDial: React.FC = () => {
                 x={Math.cos(a) * 34}
                 y={Math.sin(a) * 34 + 3}
                 textAnchor="middle"
-                fill="#a1a1aa"
+                fill="#8a9099"
                 fontSize="8"
                 className="pointer-events-none"
               >
@@ -779,10 +781,10 @@ export const ToolfaceDial: React.FC = () => {
             y1="0"
             x2={Math.sin(toRad(cmdTf)) * 32}
             y2={-Math.cos(toRad(cmdTf)) * 32}
-            stroke="#f59e0b"
-            strokeWidth="1.6"
+            stroke="#d4a017"
+            strokeWidth="1.2"
             strokeDasharray="3 2"
-            strokeLinecap="round"
+            strokeLinecap="square"
             className="pointer-events-none"
           />
           <line
@@ -790,26 +792,34 @@ export const ToolfaceDial: React.FC = () => {
             y1="0"
             x2={Math.sin(toRad(displayTf)) * 34}
             y2={-Math.cos(toRad(displayTf)) * 34}
-            stroke={tfRefMode === 'gtf' ? '#34d399' : '#60a5fa'}
-            strokeWidth="2.8"
-            strokeLinecap="round"
+            stroke={faceColor}
+            strokeWidth="1.8"
+            strokeLinecap="square"
             className="pointer-events-none"
           />
-          <circle r="2.4" fill="#fafafa" className="pointer-events-none" />
+          <circle r="2" fill="#e6e8eb" className="pointer-events-none" />
         </svg>
-        <p className="font-mono text-[12px] tabular-nums text-zinc-300">
-          Cmd {cmdTf}° · {tfRefMode === 'gtf' ? 'GTF' : 'MTF'} {displayTf.toFixed(0)}°
-          {mode === 'slide' ? ` · lag ${tfLag.toFixed(0)}°` : ' · spinning'}
+        <p className="hmi-readout text-[11px] text-[#8a9099]">
+          Cmd {cmdTf}°
+          <span className="text-[#5c636e]"> · </span>
+          {tfRefMode.toUpperCase()} {displayTf.toFixed(0)}°
+          <span className="text-[#5c636e]"> · </span>
+          {mode === 'slide' ? `lag ${tfLag.toFixed(0)}°` : 'spinning'}
         </p>
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {(['slide', 'rotate'] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`instrument-btn flex-1 capitalize ${mode === m ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${mode === m ? 'is-on' : ''}`}
+            style={
+              mode === m
+                ? { borderColor: m === 'slide' ? '#c47b3a99' : '#4d8ecf99', color: m === 'slide' ? '#c47b3a' : '#4d8ecf' }
+                : undefined
+            }
           >
             {m}
           </button>
@@ -822,20 +832,20 @@ export const ToolfaceDial: React.FC = () => {
               setTfRefMode(r);
               setCmdTf(r === 'gtf' ? cmdGtf : wrap360(cmdGtf + bit.azi));
             }}
-            className={`instrument-btn flex-1 uppercase ${tfRefMode === r ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${tfRefMode === r ? 'is-on' : ''}`}
           >
             {r}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {ticks.map((lab, i) => (
           <button
             key={lab}
             type="button"
             onClick={() => setCmdTf(i * 90)}
-            className={`instrument-btn flex-1 ${cmdTf === i * 90 ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${cmdTf === i * 90 ? 'is-on' : ''}`}
           >
             {lab}
           </button>
@@ -850,9 +860,9 @@ export const ToolfaceDial: React.FC = () => {
           max={44}
           value={wob}
           onChange={(e) => setWob(Number(e.target.value))}
-          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
         />
-        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{wob}</span>
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{wob}</span>
       </label>
       <label className="flex items-center gap-2">
         <span className="label-caps w-8">ROP</span>
@@ -863,20 +873,21 @@ export const ToolfaceDial: React.FC = () => {
           step={5}
           value={rop}
           onChange={(e) => setRop(Number(e.target.value))}
-          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
         />
-        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{rop}</span>
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{rop}</span>
       </label>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         <button
           type="button"
-          onClick={() => phase === 'debrief' ? loadWell(levelId, true) : setPlaying((p) => !p)}
-          className="instrument-btn is-active flex-1"
+          onClick={() => (phase === 'debrief' ? loadWell(levelId, true) : setPlaying((p) => !p))}
+          className="hmi-key is-on flex-1"
+          style={{ borderColor: '#3ecf8e99', color: '#3ecf8e' }}
         >
           {phase === 'debrief' ? (
             <>
-              <Play size={12} /> Drill again
+              <Play size={12} /> Again
             </>
           ) : playing ? (
             <>
@@ -888,25 +899,24 @@ export const ToolfaceDial: React.FC = () => {
             </>
           )}
         </button>
-        <button type="button" onClick={() => loadWell(levelId, true)} className="instrument-btn" aria-label="Reset well">
+        <button type="button" onClick={() => loadWell(levelId, true)} className="hmi-key" aria-label="Reset well">
           <RotateCcw size={12} />
         </button>
       </div>
 
-      {stationFlash && lastSurvey && (
-        <p className="font-mono text-[11px] tabular-nums text-amber-300">
-          Station {lastSurvey.md.toFixed(0)} · Inc {lastSurvey.inc.toFixed(1)}° / {targetNow.inc.toFixed(1)}° · TVD{' '}
-          {lastSurvey.tvd.toFixed(0)} / {targetNow.tvd.toFixed(0)}
-        </p>
-      )}
+      <p className={`min-h-[1.15rem] hmi-readout text-[11px] text-[#d4a017] ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}>
+        {lastSurvey
+          ? `Station ${lastSurvey.md.toFixed(0)} · Inc ${lastSurvey.inc.toFixed(1)}° / ${targetNow.inc.toFixed(1)}° · TVD ${lastSurvey.tvd.toFixed(0)} / ${targetNow.tvd.toFixed(0)}`
+          : 'Station'}
+      </p>
 
-      <p className="text-[12px] leading-relaxed text-zinc-400">{coach}</p>
+      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{coach}</p>
 
       {phase === 'debrief' && (
-        <div className="space-y-2">
-          <p className="text-[15px] font-semibold text-zinc-50">
-            Score {sc.total}
-            <span className="text-zinc-500"> / 100</span>
+        <div className="space-y-2 border-t border-[#1d2026] pt-3">
+          <p className="hmi-readout text-[22px] leading-none text-[#e6e8eb]">
+            {sc.total}
+            <span className="ml-1 text-[11px] text-[#5c636e]">/ 100</span>
           </p>
           {[
             { l: 'Inc vs plan', v: `${bit.inc.toFixed(1)}° / ${level.planEnd.inc}°`, p: sc.incPts, max: 25 },
@@ -918,17 +928,17 @@ export const ToolfaceDial: React.FC = () => {
             { l: 'Hole condition', v: stuck ? 'Stuck event' : 'Open hole', p: sc.stuckPts, max: 5 },
           ].map((row) => (
             <div key={row.l} className="flex items-baseline justify-between gap-3 text-[12px]">
-              <span className="text-zinc-400">{row.l}</span>
-              <span className="font-mono tabular-nums text-zinc-200">
+              <span className="text-[#8a9099]">{row.l}</span>
+              <span className="hmi-readout text-[#e6e8eb]">
                 {row.v}
-                <span className="ml-2 text-zinc-500">
+                <span className="ml-2 text-[#5c636e]">
                   {Math.round(row.p)}/{row.max}
                 </span>
               </span>
             </div>
           ))}
           {debriefNotes.slice(1).map((n) => (
-            <p key={n} className="text-[12px] leading-relaxed text-zinc-400">
+            <p key={n} className="text-[12px] leading-relaxed text-[#8a9099]">
               {n}
             </p>
           ))}

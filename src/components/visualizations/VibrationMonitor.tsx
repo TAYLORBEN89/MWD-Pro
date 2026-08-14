@@ -98,9 +98,9 @@ function clamp(n: number, a: number, b: number) {
 }
 
 function severity(g: number) {
-  if (g >= 8) return { label: 'Critical', cls: 'text-red-400', bar: '#ef4444' };
-  if (g >= 5) return { label: 'Warning', cls: 'text-amber-400', bar: '#f59e0b' };
-  return { label: 'Safe', cls: 'text-emerald-400', bar: '#10b981' };
+  if (g >= 8) return { label: 'Critical', cls: 'text-[#e24b4a]', bar: '#e24b4a' };
+  if (g >= 5) return { label: 'Warning', cls: 'text-[#d4a017]', bar: '#d4a017' };
+  return { label: 'Safe', cls: 'text-[#3ecf8e]', bar: '#3ecf8e' };
 }
 
 function classify(s: Sample): Dysfunction {
@@ -449,26 +449,29 @@ export const VibrationMonitor: React.FC = () => {
   const shakeX = clamp((live.lateral - 1) * 0.28, -2.1, 2.1);
   const shakeY = clamp((live.axial - 1) * 0.22, -2.1, 2.1);
   const spin = 18 + live.torsional * 16;
-  const healthColor = health < 35 ? '#ef4444' : health < 65 ? '#f59e0b' : '#10b981';
   const lastSurvey = surveys[surveys.length - 1];
   const mdSpan = Math.max(1, level.endMd - level.startMd);
   const mdPct = clamp(((md - level.startMd) / mdSpan) * 100, 0, 100);
 
   const chip =
     killed === 'electronics'
-      ? { label: 'Dead tool', cls: 'text-red-400', bar: '#ef4444' }
+      ? { label: 'Dead tool', cls: 'text-[#e24b4a]', bar: '#e24b4a' }
       : killed === 'stall'
-        ? { label: 'Motor stall', cls: 'text-red-400', bar: '#ef4444' }
+        ? { label: 'Stall', cls: 'text-[#e24b4a]', bar: '#e24b4a' }
         : killed === 'twist'
-          ? { label: 'Twist-off', cls: 'text-red-400', bar: '#ef4444' }
+          ? { label: 'Twist-off', cls: 'text-[#e24b4a]', bar: '#e24b4a' }
           : phase === 'debrief'
             ? sc.total >= 75
-              ? { label: 'Send', cls: 'text-emerald-400', bar: '#34d399' }
-              : { label: 'Miss', cls: 'text-amber-400', bar: '#f59e0b' }
+              ? { label: 'Send', cls: 'text-[#3ecf8e]', bar: '#3ecf8e' }
+              : { label: 'Miss', cls: 'text-[#d4a017]', bar: '#d4a017' }
             : stationFlash
-              ? { label: lastSurvey?.pass ? 'Survey OK' : 'Survey fail', cls: lastSurvey?.pass ? 'text-emerald-400' : 'text-red-400', bar: lastSurvey?.pass ? '#34d399' : '#ef4444' }
+              ? {
+                  label: lastSurvey?.pass ? 'Survey OK' : 'QC fail',
+                  cls: lastSurvey?.pass ? 'text-[#3ecf8e]' : 'text-[#e24b4a]',
+                  bar: lastSurvey?.pass ? '#3ecf8e' : '#e24b4a',
+                }
               : !playing
-                ? { label: 'Paused', cls: 'text-zinc-300', bar: '#a1a1aa' }
+                ? { label: 'Paused', cls: 'text-[#8a9099]', bar: '#8a9099' }
                 : { label: overall.label, cls: overall.cls, bar: overall.bar };
 
   const coach = (() => {
@@ -482,46 +485,46 @@ export const VibrationMonitor: React.FC = () => {
   })();
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="label-caps text-zinc-500">Sim lab</p>
+          <p className="label-caps">Downhole dynamics</p>
           <h3 className="instrument-title mt-1">Vibration Monitor</h3>
-          <p className="mt-1 min-h-[3.25rem] text-[12px] leading-relaxed text-zinc-400">{level.brief}</p>
+          <p className="mt-1.5 min-h-[3.25rem] text-[12px] leading-relaxed text-[#8a9099]">{level.brief}</p>
         </div>
-        <span className={`instrument-chip w-[6.6rem] shrink-0 justify-center whitespace-nowrap ${chip.cls}`}>
+        <span className={`hmi-lamp w-[5.8rem] shrink-0 justify-end whitespace-nowrap ${chip.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
           {chip.label}
         </span>
       </div>
 
-      <div className="flex gap-1">
+      <div className="grid grid-cols-3 gap-1.5">
         {LEVELS.map((lvl) => (
           <button
             key={lvl.id}
             type="button"
             onClick={() => loadWell(lvl.id, true)}
-            className={`instrument-btn flex-1 px-1.5 ${levelId === lvl.id ? 'is-active' : ''}`}
+            className={`hmi-key px-1.5 ${levelId === lvl.id ? 'is-on' : ''}`}
+            style={levelId === lvl.id ? { borderColor: '#3ecf8e99', color: '#3ecf8e' } : undefined}
           >
             {lvl.name}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#07080a] p-2">
+      <div className="flex gap-2 overflow-hidden border border-[#1d2026] bg-[#07080a] p-2">
         <svg viewBox="0 0 72 148" className="h-[148px] w-16 shrink-0 overflow-hidden" aria-hidden="true">
-          <rect x="18" y="6" width="36" height="136" rx="18" fill="#111827" stroke="#27272a" />
-          <rect x="22" y="10" width="28" height="128" rx="14" fill="#09090b" />
+          <rect x="20" y="8" width="32" height="128" fill="none" stroke="#2a2d33" />
           <g transform={`translate(${shakeX.toFixed(1)} ${shakeY.toFixed(1)})`}>
-            <rect x="30" y="16" width="12" height="18" rx="2" fill="#52525b" />
-            <rect x="28" y="36" width="16" height="28" rx="3" fill="#10b981" opacity="0.85" />
-            <rect x="30" y="66" width="12" height="22" rx="2" fill="#3f3f46" />
+            <rect x="30" y="16" width="12" height="18" fill="none" stroke="#8a9099" />
+            <rect x="28" y="36" width="16" height="28" fill="none" stroke="#3ecf8e" />
+            <rect x="30" y="66" width="12" height="22" fill="none" stroke="#5c636e" />
             <g transform={`rotate(${((tRef.current * spin) % 360).toFixed(1)} 36 108)`}>
-              <circle cx="36" cy="108" r="11" fill="#a1a1aa" />
-              <path d="M36 98 L39 108 L36 118 L33 108 Z" fill="#18181b" />
+              <circle cx="36" cy="108" r="11" fill="none" stroke="#8a9099" />
+              <path d="M36 98 L39 108 L36 118 L33 108 Z" fill="#07080a" stroke="#8a9099" />
             </g>
           </g>
-          <text x="36" y="144" textAnchor="middle" fill="#52525b" fontSize="7">
+          <text x="36" y="144" textAnchor="middle" fill="#5c636e" fontSize="7">
             BHA
           </text>
         </svg>
@@ -532,18 +535,16 @@ export const VibrationMonitor: React.FC = () => {
             return (
               <div key={ch.key} className="flex items-center gap-2">
                 <div className="w-[4.6rem] shrink-0">
-                  <p className="text-[10px] font-semibold leading-none text-zinc-200">{ch.name}</p>
-                  <p className="text-[9px] text-zinc-500">{ch.sub}</p>
+                  <p className="label-caps leading-none">{ch.name}</p>
+                  <p className="mt-0.5 text-[10px] text-[#5c636e]">{ch.sub}</p>
                 </div>
                 <svg viewBox={`0 0 ${TRACE_W} ${TRACE_H}`} className="h-9 flex-1 overflow-hidden" preserveAspectRatio="none">
-                  <line x1="0" x2={TRACE_W} y1={TRACE_H * 0.5} y2={TRACE_H * 0.5} stroke="rgba(255,255,255,0.06)" />
-                  <path d={ch.path} fill="none" stroke={sev.bar} strokeWidth="1.7" strokeLinejoin="round" />
+                  <line x1="0" x2={TRACE_W} y1={TRACE_H * 0.5} y2={TRACE_H * 0.5} stroke="#1d2026" />
+                  <path d={ch.path} fill="none" stroke={sev.bar} strokeWidth="1.25" strokeLinejoin="miter" />
                 </svg>
                 <div className="w-12 shrink-0 text-right">
-                  <p className="font-mono text-[12px] font-semibold leading-none tabular-nums text-zinc-100">
-                    {ch.value.toFixed(1)}
-                  </p>
-                  <p className={`text-[9px] font-medium ${sev.cls}`}>{sev.label}</p>
+                  <p className="hmi-readout text-[13px] leading-none text-[#e6e8eb]">{ch.value.toFixed(1)}</p>
+                  <p className={`mt-0.5 text-[9px] font-medium ${sev.cls}`}>{sev.label}</p>
                 </div>
               </div>
             );
@@ -551,28 +552,51 @@ export const VibrationMonitor: React.FC = () => {
         </div>
       </div>
 
-      <div className="h-1 overflow-hidden rounded-full bg-zinc-800">
-        <div className="h-full bg-emerald-500/80" style={{ width: `${mdPct}%` }} />
+      <div className="h-px overflow-hidden bg-[#1d2026]">
+        <div className="h-px bg-[#3ecf8e]" style={{ width: `${mdPct}%` }} />
       </div>
 
-      <div className="grid grid-cols-4 gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-300">
-        <span>MD {md.toFixed(0)}</span>
-        <span>Bit {bitNow.toFixed(0)}</span>
-        <span className={ssrNow >= 1 ? 'text-amber-400' : ''}>SSR {ssrNow.toFixed(2)}</span>
-        <span className={pulseNow < 55 ? 'text-amber-400' : ''}>Pulse {pulseNow.toFixed(0)}%</span>
-        <span>Shk {shocks}</span>
-        <span>TF ±{wander.toFixed(0)}°</span>
-        <span>GR {grLive.toFixed(0)}</span>
-        <span style={{ color: healthColor }}>El {Math.round(health)}%</span>
+      <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-y border-[#1d2026] py-2">
+        {[
+          { l: 'Axial', v: live.axial.toFixed(1), u: 'G', warn: live.axial >= 5 },
+          { l: 'Lateral', v: live.lateral.toFixed(1), u: 'G', warn: live.lateral >= 5 },
+          { l: 'Tors', v: live.torsional.toFixed(1), u: 'G', warn: live.torsional >= 5 },
+          { l: 'Elec', v: `${Math.round(health)}`, u: '%', warn: health < 65 },
+        ].map((row) => (
+          <div key={row.l}>
+            <p className="label-caps">{row.l}</p>
+            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
+              {row.v}
+              <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
+            </p>
+          </div>
+        ))}
       </div>
 
-      <div className="flex gap-1">
+      <div className="hmi-readout text-[11px] text-[#8a9099]">
+        MD {md.toFixed(0)}
+        <span className="text-[#5c636e]"> · </span>
+        Bit {bitNow.toFixed(0)}
+        <span className={ssrNow >= 1 ? ' text-[#d4a017]' : ''}> · SSR {ssrNow.toFixed(2)}</span>
+        <span className={pulseNow < 55 ? ' text-[#d4a017]' : ''}> · Pulse {pulseNow.toFixed(0)}%</span>
+        <span className="text-[#5c636e]"> · </span>
+        TF ±{wander.toFixed(0)}°
+        <span className="text-[#5c636e]"> · </span>
+        GR {grLive.toFixed(0)}
+      </div>
+
+      <div className="flex gap-1.5">
         {(['slide', 'rotate'] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`instrument-btn flex-1 capitalize ${mode === m ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${mode === m ? 'is-on' : ''}`}
+            style={
+              mode === m
+                ? { borderColor: m === 'slide' ? '#c47b3a99' : '#4d8ecf99', color: m === 'slide' ? '#c47b3a' : '#4d8ecf' }
+                : undefined
+            }
           >
             {m}
           </button>
@@ -587,9 +611,9 @@ export const VibrationMonitor: React.FC = () => {
           max={200}
           value={rpm}
           onChange={(e) => setRpm(Number(e.target.value))}
-          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
         />
-        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{rpm}</span>
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{rpm}</span>
       </label>
       <label className="flex items-center gap-2">
         <span className="label-caps w-8">WOB</span>
@@ -599,9 +623,9 @@ export const VibrationMonitor: React.FC = () => {
           max={50}
           value={wob}
           onChange={(e) => setWob(Number(e.target.value))}
-          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
         />
-        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{wob}</span>
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{wob}</span>
       </label>
       <label className="flex items-center gap-2">
         <span className="label-caps w-8">GPM</span>
@@ -612,20 +636,21 @@ export const VibrationMonitor: React.FC = () => {
           step={10}
           value={gpm}
           onChange={(e) => setGpm(Number(e.target.value))}
-          className="h-1.5 flex-1 appearance-none rounded-lg bg-zinc-800 accent-emerald-500"
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
         />
-        <span className="w-8 text-right font-mono text-[11px] text-zinc-300">{gpm}</span>
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{gpm}</span>
       </label>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         <button
           type="button"
           onClick={() => (phase === 'debrief' ? loadWell(levelId, true) : setPlaying((p) => !p))}
-          className="instrument-btn is-active flex-1"
+          className="hmi-key is-on flex-1"
+          style={{ borderColor: '#3ecf8e99', color: '#3ecf8e' }}
         >
           {phase === 'debrief' ? (
             <>
-              <Play size={12} /> Drill again
+              <Play size={12} /> Again
             </>
           ) : playing ? (
             <>
@@ -641,18 +666,18 @@ export const VibrationMonitor: React.FC = () => {
           type="button"
           disabled={phase !== 'run'}
           onClick={() => takeSurvey(live, md, pulseNow, ssrNow)}
-          className="instrument-btn flex-1"
+          className="hmi-key flex-1"
         >
-          Take survey
+          Survey
         </button>
-        <button type="button" onClick={() => loadWell(levelId, true)} className="instrument-btn" aria-label="Reset stand">
+        <button type="button" onClick={() => loadWell(levelId, true)} className="hmi-key" aria-label="Reset stand">
           <RotateCcw size={12} />
         </button>
       </div>
 
       <p
-        className={`min-h-[1.15rem] font-mono text-[11px] tabular-nums ${
-          lastSurvey?.pass ? 'text-emerald-300' : 'text-amber-300'
+        className={`min-h-[1.15rem] hmi-readout text-[11px] ${
+          lastSurvey?.pass ? 'text-[#3ecf8e]' : 'text-[#d4a017]'
         } ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}
       >
         {lastSurvey
@@ -660,13 +685,13 @@ export const VibrationMonitor: React.FC = () => {
           : 'Station'}
       </p>
 
-      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-zinc-400">{coach}</p>
+      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{coach}</p>
 
       {phase === 'debrief' && (
-        <div className="space-y-2">
-          <p className="text-[15px] font-semibold text-zinc-50">
-            Score {sc.total}
-            <span className="text-zinc-500"> / 100</span>
+        <div className="space-y-2 border-t border-[#1d2026] pt-3">
+          <p className="hmi-readout text-[22px] leading-none text-[#e6e8eb]">
+            {sc.total}
+            <span className="ml-1 text-[11px] text-[#5c636e]">/ 100</span>
           </p>
           {[
             { l: 'Time in safe window', v: `${ticks ? ((safeTicks / ticks) * 100).toFixed(0) : 0}% < 5 G`, p: sc.safePts, max: 25 },
@@ -677,17 +702,17 @@ export const VibrationMonitor: React.FC = () => {
             { l: 'Hole / tool', v: killed === 'ok' ? 'Open hole' : killed, p: sc.processPts, max: 10 },
           ].map((row) => (
             <div key={row.l} className="flex items-baseline justify-between gap-3 text-[12px]">
-              <span className="text-zinc-400">{row.l}</span>
-              <span className="font-mono tabular-nums text-zinc-200">
+              <span className="text-[#8a9099]">{row.l}</span>
+              <span className="hmi-readout text-[#e6e8eb]">
                 {row.v}
-                <span className="ml-2 text-zinc-500">
+                <span className="ml-2 text-[#5c636e]">
                   {Math.round(row.p)}/{row.max}
                 </span>
               </span>
             </div>
           ))}
           {debriefNotes.slice(1).map((n) => (
-            <p key={n} className="text-[12px] leading-relaxed text-zinc-400">
+            <p key={n} className="text-[12px] leading-relaxed text-[#8a9099]">
               {n}
             </p>
           ))}
