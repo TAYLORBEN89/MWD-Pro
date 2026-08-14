@@ -394,26 +394,26 @@ function JointIcon({
   first: boolean;
   last: boolean;
 }) {
-  const glow = on ? `drop-shadow(0 0 7px ${color})` : 'none';
-  const opacity = on ? 1 : 0.42;
+  const stroke = on ? color : `${color}99`;
+  const opacity = on ? 1 : 0.34;
   const top = first ? 4 : 1.5;
   const bot = last ? 86 : 98.5;
-  const r = 3.2;
+  const r = 2.2;
 
   return (
-    <span className="relative block h-full w-full" style={{ opacity }}>
-      <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
-        <g fill="none" stroke={color} strokeWidth="1.7" style={{ filter: glow }}>
+    <span className="relative block h-full w-full overflow-hidden" style={{ opacity }}>
+      <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full overflow-hidden" preserveAspectRatio="none" aria-hidden>
+        <g fill="none" stroke={stroke} strokeWidth={on ? 1.55 : 1.15}>
           <path
             d={`M${12 + r} ${top} H${44 - r} Q44 ${top} 44 ${top + r} V${bot - r} Q44 ${bot} ${44 - r} ${bot} H${12 + r} Q12 ${bot} 12 ${bot - r} V${top + r} Q12 ${top} ${12 + r} ${top} Z`}
             vectorEffect="non-scaling-stroke"
           />
         </g>
       </svg>
-      <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet" aria-hidden>
-        <g fill="none" stroke={color} strokeWidth="1.6" style={{ filter: glow }}>
+      <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full overflow-hidden" preserveAspectRatio="xMidYMid meet" aria-hidden>
+        <g fill="none" stroke={stroke} strokeWidth="1.35">
           {kind === 'bit' && <path d="M17 78 L28 94 L39 78" />}
-          {kind === 'pulser' && <rect x="21" y="46" width="14" height="8" rx="1.5" />}
+          {kind === 'pulser' && <rect x="21" y="46" width="14" height="8" rx="1" />}
           {kind === 'battery' && (
             <>
               <path d="M20 40 H36" />
@@ -423,8 +423,8 @@ function JointIcon({
           )}
           {kind === 'directional' && (
             <>
-              <circle cx="28" cy="42" r="3.4" />
-              <circle cx="28" cy="58" r="3.4" />
+              <circle cx="28" cy="42" r="3.2" />
+              <circle cx="28" cy="58" r="3.2" />
             </>
           )}
           {kind === 'gamma' && <ellipse cx="28" cy="50" rx="6" ry="10" />}
@@ -452,15 +452,14 @@ function JointIcon({
 function MiniStack({ joints }: { joints: JointSpec[] }) {
   const max = Math.max(...joints.map((j) => j.ft));
   return (
-    <span className="flex h-9 w-3.5 flex-col justify-between" aria-hidden>
+    <span className="flex h-8 w-2.5 flex-col justify-between" aria-hidden>
       {joints.map((j, i) => (
         <span
           key={`${j.id}-${i}`}
-          className="mx-auto w-full rounded-[1px]"
+          className="mx-auto w-full"
           style={{
-            height: `${Math.max(2, (j.ft / max) * 7)}px`,
+            height: `${Math.max(1.5, (j.ft / max) * 6)}px`,
             background: j.color,
-            boxShadow: `0 0 5px ${j.color}88`,
           }}
         />
       ))}
@@ -508,111 +507,99 @@ export const ToolArchitecture: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <p className="label-caps text-zinc-500">Sim lab</p>
-        <h3 className="instrument-title mt-1">Tool Architecture</h3>
-        <p className="mt-2 text-[13px] leading-relaxed text-zinc-300">
-          Different BHAs serve different purposes. Here are a few to pick from.
-        </p>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-500">
-          Walk the string from NMDC to bit. The notes change with the recipe — same joint,
-          different reason it is there.
-        </p>
-      </motion.div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="label-caps">String schematic</p>
+          <h3 className="instrument-title mt-1">Tool Architecture</h3>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-[#8a9099]">
+            Different BHAs serve different purposes. Select a recipe, then walk NMDC to bit.
+          </p>
+        </div>
+        <span className={`hmi-lamp shrink-0 ${magOk ? 'text-[#3ecf8e]' : 'text-[#e24b4a]'}`}>
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: magOk ? 'var(--hmi-ok)' : 'var(--hmi-crit)' }}
+          />
+          {magOk ? 'Spacing hold' : 'Btot fail'}
+        </span>
+      </div>
 
-      <div>
-        {ASSEMBLIES.map((a, i) => {
+      <div className="grid grid-cols-2 gap-1.5">
+        {ASSEMBLIES.map((a) => {
           const on = assemblyId === a.id;
           return (
-            <motion.button
+            <button
               key={a.id}
               type="button"
               onClick={() => pickAssembly(a.id)}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.08 + i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="flex w-full items-center gap-3 py-2.5 text-left"
+              className={`hmi-key flex items-center gap-2.5 ${on ? 'is-on' : ''}`}
+              style={on ? { borderColor: `${a.accent}99`, color: a.accent } : undefined}
             >
               <MiniStack joints={a.joints} />
-              <span className="min-w-0 flex-1">
-                <span
-                  className="block text-[13px] font-semibold"
-                  style={{ color: on ? a.accent : '#fafafa' }}
-                >
+              <span className="min-w-0">
+                <span className="block truncate text-[11px] font-semibold tracking-normal normal-case">
                   {a.label}
                 </span>
-                <span className={`block text-[11px] ${on ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                <span className="mt-0.5 block truncate text-[10px] font-medium normal-case tracking-normal text-[#5c636e]">
                   {a.tag}
                 </span>
               </span>
-              {on && (
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: a.accent, boxShadow: `0 0 10px ${a.accent}` }}
-                />
-              )}
-            </motion.button>
+            </button>
           );
         })}
       </div>
 
-      <div
-        className="border-l-2 pl-3"
-        style={{
-          borderColor: assembly.accent,
-          boxShadow: `-6px 0 18px ${assembly.accent}33`,
-        }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-[13px] leading-relaxed text-zinc-100">{assembly.purpose}</p>
-          <span className={`instrument-chip shrink-0 ${magOk ? 'text-emerald-400' : 'text-red-400'}`}>
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{
-                background: magOk ? '#34d399' : '#f87171',
-                boxShadow: magOk ? '0 0 8px #34d399' : '0 0 8px #f87171',
-              }}
-            />
-            {magOk ? 'Spacing hold' : 'Btot fail'}
-          </span>
-        </div>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
-          <span className="text-zinc-500">Goal. </span>
+      <div className="space-y-1.5 border-l border-[#2a2d33] pl-3">
+        <p className="text-[12px] leading-relaxed text-[#e6e8eb]">{assembly.purpose}</p>
+        <p className="text-[12px] leading-relaxed text-[#8a9099]">
+          <span className="label-caps mr-2 inline text-[#5c636e]">Obj</span>
           {assembly.goals}
         </p>
-        <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">
-          <span className="text-zinc-500">Does. </span>
+        <p className="text-[12px] leading-relaxed text-[#8a9099]">
+          <span className="label-caps mr-2 inline text-[#5c636e]">Fn</span>
           {assembly.functions}
         </p>
-        <p className="mt-1 font-mono text-[11px] tabular-nums text-zinc-500">{total.toFixed(0)} ft BHA</p>
       </div>
 
-      <div className="flex gap-1">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-y border-[#1d2026] py-2">
+        {[
+          { l: 'BHA', v: `${total.toFixed(0)}`, u: 'ft' },
+          { l: 'Dir STB', v: `${dirStb.toFixed(0)}`, u: 'ft' },
+          { l: 'GR STB', v: `${grStb.toFixed(0)}`, u: 'ft' },
+          { l: 'NMDC', v: `${nmdc?.ft ?? 0}`, u: 'ft', warn: !magOk },
+        ].map((row) => (
+          <div key={row.l}>
+            <p className="label-caps">{row.l}</p>
+            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
+              {row.v}
+              <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-1.5">
         {(['standard', 'short'] as const).map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setSpacing(s)}
-            className={`instrument-btn flex-1 ${spacing === s ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 text-center ${spacing === s ? 'is-on' : ''}`}
+            style={
+              spacing === s
+                ? { borderColor: s === 'short' ? 'var(--hmi-crit)' : 'var(--hmi-ok)' }
+                : undefined
+            }
           >
             {s === 'standard' ? 'Chart NMDC' : 'Short NMDC'}
           </button>
         ))}
       </div>
 
-      <p className="font-mono text-[12px] tabular-nums text-zinc-300">
-        Dir {dirStb.toFixed(0)} ft
-        <span className="text-zinc-600"> · </span>
-        GR {grStb.toFixed(0)} ft
-        <span className="text-zinc-600"> · </span>
-        <span className={magOk ? '' : 'text-red-400'}>NMDC {nmdc?.ft ?? 0} ft</span>
-      </p>
-
-      <p className="font-mono text-[10px] tracking-[0.18em] text-zinc-600">UPHOLE</p>
+      <div className="flex items-center gap-2">
+        <span className="hmi-readout text-[10px] tracking-[0.18em] text-[#5c636e]">UPHOLE</span>
+        <span className="h-px flex-1 bg-[#1d2026]" />
+      </div>
 
       <div>
         {joints.map((joint, i) => {
@@ -645,10 +632,10 @@ export const ToolArchitecture: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
+                      transition={{ duration: 0.12 }}
                     >
                       <svg
-                        className="absolute inset-0 h-full w-full"
+                        className="absolute inset-0 h-full w-full overflow-hidden"
                         viewBox="0 0 100 100"
                         preserveAspectRatio="none"
                         aria-hidden
@@ -657,34 +644,40 @@ export const ToolArchitecture: React.FC = () => {
                           d="M 0 50 H 14 V 10 H 58 V 26"
                           fill="none"
                           stroke={joint.color}
-                          strokeWidth="1.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                          strokeWidth="1.15"
+                          strokeLinecap="square"
+                          strokeLinejoin="miter"
                           vectorEffect="non-scaling-stroke"
-                          style={{ filter: `drop-shadow(0 0 5px ${joint.color})` }}
                           initial={{ pathLength: 0 }}
                           animate={{ pathLength: 1 }}
                           exit={{ pathLength: 0 }}
-                          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                          transition={{ duration: 0.28, ease: 'linear' }}
                         />
                       </svg>
                       <motion.span
                         className="absolute left-[46%] right-0 top-[28%]"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ delay: 0.42, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ delay: 0.18, duration: 0.16 }}
                       >
-                        <span className="block text-[13px] font-semibold" style={{ color: joint.color }}>
+                        <span className="label-caps" style={{ color: joint.color }}>
+                          {selected.short}
+                        </span>
+                        <span className="mt-0.5 block text-[13px] font-semibold tracking-tight text-[#e6e8eb]">
                           {selected.name}
                         </span>
-                        <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-zinc-400">
-                          {selected.od} · {selected.ft} ft · {stb.toFixed(0)} ft from bit
+                        <span className="mt-1 block hmi-readout text-[11px] text-[#8a9099]">
+                          {selected.od}
+                          <span className="text-[#5c636e]"> · </span>
+                          {selected.ft} ft
+                          <span className="text-[#5c636e]"> · </span>
+                          {stb.toFixed(0)} ft STB
                         </span>
-                        <span className="mt-1 block text-[11px] font-medium text-zinc-200">
+                        <span className="mt-1.5 block text-[12px] font-medium text-[#c7ccd3]">
                           {selected.lede}
                         </span>
-                        <span className="mt-1 block text-[12px] leading-relaxed text-zinc-400">
+                        <span className="mt-1 block text-[12px] leading-relaxed text-[#8a9099]">
                           {body}
                         </span>
                       </motion.span>
@@ -697,7 +690,10 @@ export const ToolArchitecture: React.FC = () => {
         })}
       </div>
 
-      <p className="font-mono text-[10px] tracking-[0.18em] text-zinc-600">BIT</p>
+      <div className="flex items-center gap-2">
+        <span className="h-px flex-1 bg-[#1d2026]" />
+        <span className="hmi-readout text-[10px] tracking-[0.18em] text-[#5c636e]">BIT</span>
+      </div>
     </div>
   );
 };

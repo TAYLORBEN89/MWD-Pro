@@ -20,6 +20,12 @@
   --accent-border: rgba(16, 185, 129, 0.25);
   --danger: #ef4444;
   --danger-dim: rgba(239, 68, 68, 0.12);
+  --hmi-ok: #3ecf8e;
+  --hmi-warn: #d4a017;
+  --hmi-crit: #e24b4a;
+  --hmi-slide: #c47b3a;
+  --hmi-rot: #4d8ecf;
+  --hmi-tele: #3aa8b8;
   --radius: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
@@ -487,6 +493,33 @@
     background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+  }
+
+  .hmi-readout {
+    @apply font-mono tabular-nums tracking-tight;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hmi-key {
+    @apply px-2.5 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors;
+    background: transparent;
+    color: #8a9099;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+
+  .hmi-key:hover {
+    color: #e6e8eb;
+    border-color: var(--border-strong);
+  }
+
+  .hmi-key.is-on {
+    color: #e6e8eb;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .hmi-lamp {
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em];
   }
 
   /* ── Lesson reader (full-bleed, no card, no bullets) ── */
