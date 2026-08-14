@@ -410,6 +410,8 @@ const getOrCreateMwdProduct = async () => {
   const product = await stripeInstance.products.create({
     name: "MWD Pro: Full Course Access",
     description: "Lifetime access to all 15 modules and certification.",
+    // Digital goods / e-learning tax code (for Managed Payments eligibility if re-enabled later)
+    tax_code: "txcd_10000000",
     default_price_data: {
       currency: "usd",
       unit_amount: 4900,
@@ -503,10 +505,14 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
     const stripeInstance = getStripe();
     const priceId = await getOrCreateMwdProduct();
     const origin = req.headers.origin || `https://${req.headers.host}`;
-    // Do not pass payment_method_types when Stripe Managed Payments is enabled (default on newer accounts).
+    // Classic Checkout: disable Managed Payments so existing products work without forced tax-code setup.
+    // Re-enable managed payments later once product tax_codes are configured in Stripe Dashboard.
     const session = await stripeInstance.checkout.sessions.create({
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
+      payment_method_types: ["card"],
+      // @ts-expect-error managed_payments is supported by Stripe API; older stripe types may omit it
+      managed_payments: { enabled: false },
       success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?payment=cancel`,
       customer_email: userEmail,
