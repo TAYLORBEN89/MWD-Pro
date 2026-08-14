@@ -44,6 +44,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import { mwdCurriculum } from './data/mwdData';
 import { simLabCatalog } from './data/simLab';
+import { getModuleCover } from './data/moduleCovers';
 import { CurriculumSection, QuizQuestion } from './types';
 import { useFirebase } from './FirebaseContext';
 import { CinemaAdMode } from './components/CinemaAdMode';
@@ -675,48 +676,70 @@ export default function App() {
                     />
                   </div>
                   
-                  <div className="grid gap-4">
+                  <div className="grid gap-5">
                     {filteredCurriculum.map((section) => {
                       const index = mwdCurriculum.findIndex(s => s.id === section.id);
                       const isCompleted = results.some(r => r.sectionId === section.id && r.score >= 80);
                       
+                      const isFree = index < 3;
+                      const isLocked = index >= 3 && !hasPurchased;
                       return (
                         <button 
                           key={section.id}
+                          type="button"
                           onClick={() => {
-                            const isFree = index < 3;
-                            if (!isFree && !hasPurchased) {
-                              // Show paywall or alert
+                            if (isLocked) {
                               return;
                             }
                             setCurrentSectionId(section.id);
                           }}
-                          className={`group relative module-card ${isCompleted ? "is-complete" : ""} ${index >= 3 && !hasPurchased ? "is-locked" : ""}`}
+                          className={`group module-photo-card ${isCompleted ? "is-complete" : ""} ${isLocked ? "is-locked" : ""}`}
                         >
-                          <div className="flex items-center gap-5">
-                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-semibold transition-colors shrink-0 font-display text-sm ${isCompleted ? 'bg-emerald-500/100 text-zinc-950' : 'bg-elevated text-zinc-500 group-hover:bg-emerald-500/100 group-hover:text-zinc-950'}`}>
-                              {index >= 3 && !hasPurchased ? <Lock size={20} /> : (isCompleted ? <CheckCircle2 size={24} /> : index + 1)}
+                          <img
+                            src={getModuleCover(section.id)}
+                            alt=""
+                            className="module-photo-bg"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          <div className="module-photo-scrim" aria-hidden />
+
+                          {isLocked && (
+                            <div className="module-photo-lock" aria-label="Locked">
+                              <Lock size={16} />
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-zinc-100 group-hover:text-emerald-400 transition-colors font-display text-[15px]">{section.title}</h3>
-                                {index < 3 && !hasPurchased && (
-                                  <span className="text-[10px] bg-emerald-500/100/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium">Free</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[11px] text-emerald-400/90 font-medium">Module {index + 1}</span>
-                                <span className="w-1 h-1 bg-zinc-700 rounded-full" />
-                                <span className="text-[11px] text-zinc-500 font-medium">{section.quizQuestions.length} Questions</span>
-                              </div>
+                          )}
+                          {isCompleted && !isLocked && (
+                            <div className="module-photo-done" aria-label="Completed">
+                              <CheckCircle2 size={18} />
                             </div>
-                            {index >= 3 && !hasPurchased ? (
-                              <div className="text-zinc-700">
-                                <Lock size={20} />
-                              </div>
-                            ) : (
-                              <ChevronRight className="text-zinc-700 group-hover:text-emerald-500 transition-colors" size={20} />
-                            )}
+                          )}
+                          {isFree && !hasPurchased && (
+                            <span className="module-photo-badge">Free</span>
+                          )}
+
+                          <div className="module-photo-body">
+                            <div className="module-photo-meta">
+                              <span className="text-[11px] font-semibold text-emerald-400 tracking-wide">
+                                Module {index + 1}
+                              </span>
+                              <span className="w-1 h-1 bg-white/30 rounded-full" />
+                              <span className="text-[11px] text-zinc-300/90">
+                                {section.quizQuestions.length} questions
+                              </span>
+                            </div>
+                            <h3 className="module-photo-title">{section.title}</h3>
+                            <div className="module-photo-sub">
+                              {isLocked ? (
+                                <span className="inline-flex items-center gap-1.5 text-zinc-400">
+                                  <Lock size={12} /> Unlock with full access
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-zinc-200 group-hover:text-emerald-300 transition-colors">
+                                  Open module <ChevronRight size={14} />
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       );

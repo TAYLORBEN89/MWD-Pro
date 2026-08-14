@@ -182,6 +182,92 @@
     @apply opacity-60;
   }
 
+  /* Tall photo module tiles */
+  .module-photo-card {
+    @apply relative w-full text-left overflow-hidden transition-all active:scale-[0.99];
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    /* ~2x taller than a standard list row */
+    aspect-ratio: 3 / 4;
+    min-height: 17.5rem;
+    background: #0a0a0a;
+  }
+
+  .module-photo-card:hover {
+    border-color: var(--accent-border);
+  }
+
+  .module-photo-card.is-complete {
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+
+  .module-photo-card.is-locked {
+    filter: saturate(0.55) brightness(0.75);
+  }
+
+  .module-photo-card.is-locked:hover {
+    filter: saturate(0.65) brightness(0.8);
+  }
+
+  .module-photo-bg {
+    @apply absolute inset-0 w-full h-full object-cover;
+    transform: scale(1.02);
+    transition: transform 0.45s ease;
+  }
+
+  .module-photo-card:hover .module-photo-bg {
+    transform: scale(1.06);
+  }
+
+  .module-photo-scrim {
+    @apply absolute inset-0 pointer-events-none;
+    /* bottom-up shadow for legible text */
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.92) 0%,
+      rgba(0, 0, 0, 0.78) 28%,
+      rgba(0, 0, 0, 0.35) 52%,
+      rgba(0, 0, 0, 0.08) 72%,
+      transparent 100%
+    );
+  }
+
+  .module-photo-body {
+    @apply absolute inset-x-0 bottom-0 z-10 p-4 pt-16 flex flex-col gap-2;
+  }
+
+  .module-photo-meta {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+
+  .module-photo-title {
+    @apply font-display font-semibold text-[1.05rem] leading-snug tracking-tight text-white m-0;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+  }
+
+  .module-photo-sub {
+    @apply flex items-center gap-2 text-[11px] text-zinc-300/90 font-medium;
+  }
+
+  .module-photo-badge {
+    @apply absolute top-3 right-3 z-10 text-[10px] font-semibold px-2 py-1 rounded-full;
+    background: rgba(16, 185, 129, 0.9);
+    color: #052e1c;
+  }
+
+  .module-photo-lock {
+    @apply absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+  }
+
+  .module-photo-done {
+    @apply absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center;
+    background: rgba(16, 185, 129, 0.95);
+    color: #052e1c;
+  }
+
   /* ── Quiz options ── */
   .quiz-option {
     @apply w-full p-4 text-left text-sm font-medium transition-all flex items-center justify-between active:scale-[0.99];
