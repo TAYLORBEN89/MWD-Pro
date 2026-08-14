@@ -386,15 +386,16 @@ function JointIcon({
 }) {
   const glow = on ? `drop-shadow(0 0 7px ${color})` : 'none';
   const opacity = on ? 1 : 0.42;
-  const top = first ? 10 : 2;
-  const bot = last ? 88 : 98;
+  const top = first ? 4 : 1.5;
+  const bot = last ? 86 : 98.5;
+  const r = 3.2;
 
   return (
     <span className="relative block h-full w-full" style={{ opacity }}>
       <svg viewBox="0 0 56 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
         <g fill="none" stroke={color} strokeWidth="1.7" style={{ filter: glow }}>
           <path
-            d={`M18 ${top} ${first ? 'Q18 2 28 2 Q38 2 38' : 'L38'} ${top} L38 ${bot} ${last ? 'Q38 98 28 98 Q18 98 18' : 'L18'} ${bot} Z`}
+            d={`M${18 + r} ${top} H${38 - r} Q38 ${top} 38 ${top + r} V${bot - r} Q38 ${bot} ${38 - r} ${bot} H${18 + r} Q18 ${bot} 18 ${bot - r} V${top + r} Q18 ${top} ${18 + r} ${top} Z`}
             vectorEffect="non-scaling-stroke"
           />
         </g>
@@ -583,7 +584,7 @@ export const ToolArchitecture: React.FC = () => {
                         aria-hidden
                       >
                         <motion.path
-                          d="M 0 50 H 14 V 10 H 58 V 26"
+                          d="M 0 50 H 8 V 8 H 59 V 22"
                           fill="none"
                           stroke={joint.color}
                           strokeWidth="1.4"
@@ -598,7 +599,7 @@ export const ToolArchitecture: React.FC = () => {
                         />
                       </svg>
                       <motion.span
-                        className="absolute left-[46%] right-0 top-[28%]"
+                        className="absolute left-[18%] right-0 top-[24%]"
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
