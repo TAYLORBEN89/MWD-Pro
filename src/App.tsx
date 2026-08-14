@@ -609,8 +609,8 @@ export default function App() {
                       {currentSection.id === 'section-4' && (
                         <div className="mt-6 space-y-8">
                           <div className="space-y-4">
-                            <h3 className="text-lg title-display">Interactive Toolface Dial</h3>
-                            <p className="body-muted">Practice orienting the tool using Gravity and Magnetic references.</p>
+                            <h3 className="text-lg title-display">Toolface Control</h3>
+                            <p className="body-muted">Slide, survey, and land the curve. Minimum curvature and DLS decide if you send the well.</p>
                             <ToolfaceDial />
                           </div>
                           

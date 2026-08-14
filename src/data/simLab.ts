@@ -35,8 +35,8 @@ export function getSimLabCover(id: string): string {
 export const simLabCatalog: SimLabItem[] = [
   {
     id: 'toolface',
-    title: 'Toolface Dial',
-    subtitle: 'Orient gravity vs magnetic toolface',
+    title: 'Toolface Control',
+    subtitle: 'Slide, survey, and land the curve',
     isFree: true,
     sectionId: 'section-4',
     icon: Compass,
