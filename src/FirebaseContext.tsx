@@ -3,7 +3,7 @@ import {
   auth, 
   db, 
   loginWithGoogle,
-  completeGoogleRedirectLogin,
+  completeRedirectLogin,
   logout, 
   onAuthStateChanged, 
   User, 
@@ -51,6 +51,14 @@ interface FirebaseContextType {
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
 
+const FULL_ACCESS_EMAILS = new Set([
+  'bt4ylor1776@gmail.com',
+]);
+
+function emailHasFullAccess(email?: string | null) {
+  return !!email && FULL_ACCESS_EMAILS.has(email.trim().toLowerCase());
+}
+
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,8 +81,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, 5000);
 
     // Complete Google redirect sign-in if we returned from the OAuth page
-    void completeGoogleRedirectLogin().catch((err) => {
-      console.error('Google redirect login failed:', err);
+    void completeRedirectLogin().catch((err) => {
+      console.error('OAuth redirect login failed:', err);
       if (err?.code === 'auth/unauthorized-domain') {
         setAuthError(
           "This domain is not authorized in Firebase. Add compessential.com under Authentication → Settings → Authorized domains."
@@ -102,11 +110,9 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const userRef = doc(db, 'users', currentUser.uid);
         
         unsubscribeUser = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setHasPurchased(!!data.hasPurchased);
-            setBadges(data.badges || []);
-          }
+          const data = docSnap.exists() ? docSnap.data() : {};
+          setHasPurchased(!!data.hasPurchased || emailHasFullAccess(currentUser.email));
+          setBadges(data.badges || []);
         }, (err) => {
           console.error("User profile listener error:", err);
           if (err.message?.includes('permissions')) {
@@ -124,6 +130,11 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           
           if (currentUser.email) {
             profileData.email = currentUser.email;
+          }
+
+          if (emailHasFullAccess(currentUser.email)) {
+            profileData.hasPurchased = true;
+            profileData.unlockReason = 'owner-troubleshooting';
           }
 
           // Detect first profile write for welcome email
@@ -197,15 +208,20 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       
       let message = error?.message || "Login failed. Please try again.";
-      if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/configuration-not-found') {
         message =
-          "compessential.com is not an authorized domain in Firebase. Open Firebase Console → Authentication → Settings → Authorized domains, and add: compessential.com (and www.compessential.com).";
+          "Firebase Authentication is not fully configured on project mwd-pro-training.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        message = "Google sign-in is not enabled in Firebase Console → Authentication.";
+      } else if (error.code === 'auth/unauthorized-domain') {
+        message =
+          "This domain is not authorized in Firebase. Add it under Authentication → Settings → Authorized domains.";
       } else if (error.code === 'auth/popup-blocked') {
         message = "Login popup was blocked. Allow popups, or the app will try a full-page redirect next time.";
       } else if (error.code === 'auth/network-request-failed') {
         message = "Network error during login. Check your connection and try again.";
-      } else if (error.code === 'auth/internal-error') {
-        message = "Firebase auth internal error. Confirm Google sign-in is enabled in the Firebase Console.";
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/internal-error') {
+        message = "Firebase auth error. Confirm Google sign-in is enabled in the Firebase Console.";
       }
       
       console.error('Login error:', error);

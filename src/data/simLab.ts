@@ -25,6 +25,12 @@ export type SimLabItem = {
   icon: LucideIcon;
 };
 
+const LAB_COVER_VERSION = 'v4';
+
+export function getSimLabCover(id: string): string {
+  return `/labs/${id}.jpg?${LAB_COVER_VERSION}`;
+}
+
 /** Catalog of interactive labs (drives Sim Lab tab + free funnel). */
 export const simLabCatalog: SimLabItem[] = [
   {
@@ -38,7 +44,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'trajectory',
     title: 'Wellbore Trajectory',
-    subtitle: 'Inclination & azimuth in 3D path space',
+    subtitle: 'Profile, plan, and 3D survey path',
     isFree: true,
     sectionId: 'section-4',
     icon: Navigation,
@@ -46,7 +52,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'vibration',
     title: 'Vibration Monitor',
-    subtitle: 'Axial, lateral, and torsional regimes',
+    subtitle: 'Bit bounce, whirl, and stick-slip',
     isFree: true,
     sectionId: 'section-2',
     icon: Activity,

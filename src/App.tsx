@@ -15,6 +15,22 @@ import {
   AdvancedLogs,
   SurveyQuality
 } from './components/visualizations';
+
+const simLabRenderers: Record<string, React.FC> = {
+  toolface: ToolfaceDial,
+  trajectory: WellboreTrajectory,
+  vibration: VibrationMonitor,
+  architecture: ToolArchitecture,
+  magnetic: MagneticInterference,
+  formation: FormationLog,
+  mudpulse: MudPulseSimulator,
+  workflow: RigWorkflow,
+  failure: FailureDiagnosis,
+  steering: SteeringSimulator,
+  geosteering: GeosteeringInterpretation,
+  'advanced-logs': AdvancedLogs,
+  'survey-qc': SurveyQuality,
+};
 import { 
   BookOpen, 
   GraduationCap, 
@@ -43,7 +59,7 @@ import {
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { mwdCurriculum } from './data/mwdData';
-import { simLabCatalog } from './data/simLab';
+import { simLabCatalog, getSimLabCover } from './data/simLab';
 import { getModuleCover } from './data/moduleCovers';
 import { CurriculumSection, QuizQuestion } from './types';
 import { useFirebase } from './FirebaseContext';
@@ -174,7 +190,14 @@ export default function App() {
           const text = await res.text().catch(() => "No body");
           throw new Error(`HTTP error! status: ${res.status}. Body: ${text.substring(0, 50)}`);
         }
-        return res.json();
+        const raw = await res.text();
+        try {
+          return JSON.parse(raw);
+        } catch {
+          throw new Error(
+            `Connection failed: server returned HTML instead of JSON. Check that the app is calling ${configUrl}.`
+          );
+        }
       })
       .then(data => {
         console.log("Stripe Config Received:", data);
@@ -309,6 +332,7 @@ export default function App() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSimId, setActiveSimId] = useState<string | null>(null);
+  const ActiveSim = activeSimId ? simLabRenderers[activeSimId] : null;
   const [certEmailSent, setCertEmailSent] = useState(false);
   const [showCinemaAd, setShowCinemaAd] = useState(false);
 
@@ -569,7 +593,7 @@ export default function App() {
                       {currentSection.id === 'section-2' && (
                         <div className="mt-6 space-y-4">
                           <h3 className="text-lg title-display">Interactive Vibration Monitor</h3>
-                          <p className="body-muted">Simulate different downhole vibration and shock regimes to understand their impact on tool health.</p>
+                          <p className="body-muted">Change RPM and WOB to drive bit bounce, whirl, and stick-slip — and watch tool electronics take the hit.</p>
                           <VibrationMonitor />
                         </div>
                       )}
@@ -592,7 +616,7 @@ export default function App() {
                           
                           <div className="space-y-4">
                             <h3 className="text-lg title-display">Wellbore Trajectory Visualization</h3>
-                            <p className="body-muted">See how Inclination and Azimuth define the 3D path of the well.</p>
+                            <p className="body-muted">Scrub the bit along a minimum-curvature survey and switch profile, plan, and 3D views.</p>
                             <WellboreTrajectory />
                           </div>
                         </div>
@@ -1189,7 +1213,7 @@ export default function App() {
                 </div>
                 <h2 className="text-2xl title-display">Practice instruments</h2>
                 <p className="body-muted">
-                  Run the same tools used inside modules. Free labs unlock immediately; pro labs require full access.
+                  Run every instrument here. Free labs open immediately; pro labs unlock with full access.
                 </p>
               </div>
 
@@ -1202,9 +1226,7 @@ export default function App() {
                   >
                     <ChevronLeft size={16} /> Back to labs
                   </button>
-                  {activeSimId === 'toolface' && <ToolfaceDial />}
-                  {activeSimId === 'trajectory' && <WellboreTrajectory />}
-                  {activeSimId === 'vibration' && <VibrationMonitor />}
+                  {ActiveSim && <ActiveSim />}
                   <button
                     type="button"
                     onClick={() => {
@@ -1237,32 +1259,34 @@ export default function App() {
                           setCurrentSectionId(null);
                           return;
                         }
-                        // Free sims run inline; pro sims jump into module content
-                        if (sim.isFree && (sim.id === 'toolface' || sim.id === 'trajectory' || sim.id === 'vibration')) {
-                          setActiveSimId(sim.id);
-                          return;
-                        }
-                        setView('curriculum');
-                        setCurrentSectionId(sim.sectionId);
+                        setActiveSimId(sim.id);
                       }}
-                      className={`module-card text-left ${locked ? 'is-locked' : ''}`}
+                      className={`module-card sim-lab-card text-left ${locked ? 'is-locked' : ''}`}
                     >
-                      <div className="flex items-center gap-4">
+                      <img
+                        src={getSimLabCover(sim.id)}
+                        alt=""
+                        className="sim-lab-card-bg"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="sim-lab-card-shade" aria-hidden />
+                      <div className="relative z-10 flex items-center gap-4">
                         <div className="instrument-icon">
                           {locked ? <Lock size={16} /> : <Icon size={16} />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-zinc-100 text-[15px] truncate">{sim.title}</h3>
+                            <h3 className="sim-lab-title font-semibold text-[15px] truncate">{sim.title}</h3>
                             {sim.isFree ? (
                               <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium shrink-0">Free</span>
                             ) : (
-                              <span className="text-[10px] bg-elevated text-zinc-500 px-2 py-0.5 rounded-full font-medium shrink-0">Pro</span>
+                              <span className="text-[10px] bg-elevated text-zinc-300 px-2 py-0.5 rounded-full font-medium shrink-0">Pro</span>
                             )}
                           </div>
-                          <p className="text-xs text-zinc-500 mt-0.5">{sim.subtitle}</p>
+                          <p className="sim-lab-sub text-xs mt-0.5">{sim.subtitle}</p>
                         </div>
-                        <ChevronRight className="text-zinc-600 shrink-0" size={18} />
+                        <ChevronRight className="sim-lab-chevron shrink-0" size={18} />
                       </div>
                     </button>
                   );

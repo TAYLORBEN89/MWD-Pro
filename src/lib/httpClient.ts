@@ -35,7 +35,9 @@ export async function httpClient(url: string, options: RequestInit = {}) {
       } as unknown as Response;
     } catch (error) {
       console.error("Native HTTP Error:", error);
-      // Fallback to regular fetch if native fails
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        throw error;
+      }
       return fetch(url, options);
     }
   }

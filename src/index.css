@@ -182,6 +182,41 @@
     @apply opacity-60;
   }
 
+  .sim-lab-card {
+    @apply relative overflow-hidden;
+  }
+
+  .sim-lab-card-bg {
+    @apply absolute inset-0 w-full h-full object-cover pointer-events-none;
+    object-position: right center;
+  }
+
+  .sim-lab-card-shade {
+    @apply absolute inset-0 pointer-events-none;
+    background: linear-gradient(
+      to right,
+      rgba(9, 9, 11, 0.98) 0%,
+      rgba(9, 9, 11, 0.94) 42%,
+      rgba(9, 9, 11, 0.72) 68%,
+      rgba(9, 9, 11, 0.35) 100%
+    );
+  }
+
+  .sim-lab-card .sim-lab-title {
+    color: #fafafa;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+  }
+
+  .sim-lab-card .sim-lab-sub {
+    color: #d4d4d8;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  }
+
+  .sim-lab-card .sim-lab-chevron {
+    color: #e4e4e7;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.9));
+  }
+
   /* Tall photo module tiles */
   .module-photo-card {
     @apply relative w-full text-left overflow-hidden transition-all active:scale-[0.99];
@@ -255,6 +290,12 @@
     color: #052e1c;
   }
 
+  .module-photo-badge.is-pro {
+    background: rgba(24, 24, 27, 0.88);
+    color: #a1a1aa;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
   .module-photo-lock {
     @apply absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center;
     background: rgba(0, 0, 0, 0.55);
@@ -266,6 +307,36 @@
     @apply absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center;
     background: rgba(16, 185, 129, 0.95);
     color: #052e1c;
+  }
+
+  /* Shorter photo tiles for Sim Lab */
+  .sim-photo-card {
+    @apply relative w-full text-left overflow-hidden transition-all active:scale-[0.99];
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    aspect-ratio: 16 / 9;
+    min-height: 7.5rem;
+    background: #0a0a0a;
+  }
+
+  .sim-photo-card:hover {
+    border-color: var(--accent-border);
+  }
+
+  .sim-photo-card:hover .module-photo-bg {
+    transform: scale(1.06);
+  }
+
+  .sim-photo-card.is-locked {
+    filter: saturate(0.55) brightness(0.75);
+  }
+
+  .sim-photo-card .module-photo-body {
+    @apply p-3 pt-8 gap-1;
+  }
+
+  .sim-photo-card .module-photo-title {
+    @apply text-[0.95rem];
   }
 
   /* ── Quiz options ── */
