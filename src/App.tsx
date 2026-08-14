@@ -1206,6 +1206,7 @@ export default function App() {
               exit={{ opacity: 0, x: -16 }}
               className="space-y-6"
             >
+              {!activeSimId && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-zinc-500 mb-1">
                   <FlaskConical size={16} />
@@ -1216,31 +1217,34 @@ export default function App() {
                   Run every instrument here. Free labs open immediately; pro labs unlock with full access.
                 </p>
               </div>
+              )}
 
               {activeSimId && (
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSimId(null)}
-                    className="btn-secondary py-2 px-3 text-xs"
-                  >
-                    <ChevronLeft size={16} /> Back to labs
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSimId(null)}
+                      className="btn-secondary py-1.5 px-2.5 text-xs"
+                    >
+                      <ChevronLeft size={16} /> Labs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sim = simLabCatalog.find(s => s.id === activeSimId);
+                        if (sim) {
+                          setView('curriculum');
+                          setCurrentSectionId(sim.sectionId);
+                          setActiveSimId(null);
+                        }
+                      }}
+                      className="text-[11px] font-medium text-emerald-400"
+                    >
+                      Related module
+                    </button>
+                  </div>
                   {ActiveSim && <ActiveSim />}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sim = simLabCatalog.find(s => s.id === activeSimId);
-                      if (sim) {
-                        setView('curriculum');
-                        setCurrentSectionId(sim.sectionId);
-                        setActiveSimId(null);
-                      }
-                    }}
-                    className="w-full btn-primary"
-                  >
-                    Open related module
-                  </button>
                 </div>
               )}
 
