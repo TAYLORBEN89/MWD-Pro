@@ -76,7 +76,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'formation',
     title: 'Formation Log',
-    subtitle: 'Gamma ray lithology while drilling',
+    subtitle: 'Call the rock. Honor the lag.',
     isFree: false,
     sectionId: 'section-6',
     icon: Layers,

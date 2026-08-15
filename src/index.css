@@ -223,6 +223,63 @@
     filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.9));
   }
 
+  .seq-row {
+    @apply flex w-full items-center gap-3 text-left;
+    min-height: 3.5rem;
+    padding: 0.4rem 0.35rem 0.4rem 0.55rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #1d2026;
+    border-left: 2px solid #2a2d33;
+  }
+
+  .seq-row:hover {
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .seq-row:focus-visible {
+    outline: 1px solid var(--hmi-ok);
+    outline-offset: 2px;
+  }
+
+  .seq-row.is-next {
+    border-left-color: var(--hmi-tele);
+  }
+
+  .seq-row.is-progress {
+    border-left-color: var(--hmi-warn);
+  }
+
+  .seq-row.is-done {
+    border-left-color: var(--hmi-ok);
+  }
+
+  .seq-row.is-locked {
+    border-left-color: #2a2d33;
+  }
+
+  .seq-continue {
+    border: 1px solid #1d2026;
+    border-left: 2px solid var(--hmi-tele);
+    margin-bottom: 0.15rem;
+  }
+
+  .seq-idx {
+    @apply hmi-readout shrink-0 text-right text-[11px] text-[#5c636e];
+    width: 1.35rem;
+  }
+
+  .seq-thumb {
+    @apply shrink-0 object-cover;
+    width: 48px;
+    height: 48px;
+    background: #0a0a0a;
+  }
+
+  .seq-row.is-locked .seq-thumb {
+    opacity: 0.42;
+  }
+
   /* Tall photo module tiles */
   .module-photo-card {
     @apply relative w-full text-left overflow-hidden transition-all active:scale-[0.99];
