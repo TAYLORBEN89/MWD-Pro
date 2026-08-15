@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Compass, Crosshair, Info, MoveDown, Pause, Play, Box } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pause, Play, RotateCcw } from 'lucide-react';
 
-type WellType = 'vertical' | 'build' | 'turn';
+type Phase = 'run' | 'debrief';
 type PlotView = 'profile' | 'plan' | 'iso';
+type WellPhase = 'vertical' | 'build' | 'turn' | 'hold' | 'lateral';
+type LevelId = 1 | 2 | 3;
 
 interface SurveyPoint {
   md: number;
@@ -15,38 +17,83 @@ interface SurveyPoint {
   dls: number;
 }
 
-const MD_MAX = 5000;
-const MD_STEP = 25;
-const PLANNED_AZI = { vertical: 0, build: 90, turn: 45 };
+interface Level {
+  id: LevelId;
+  well: string;
+  name: string;
+  brief: string;
+  wellType: 'vertical' | 'build' | 'turn';
+  mdMax: number;
+  surveyEvery: number;
+  kop?: number;
+  eob?: number;
+  turnStart?: number;
+  calls: WellPhase[];
+}
 
-const WELL_META: Record<WellType, { label: string; blurb: string }> = {
-  vertical: { label: 'Vertical', blurb: 'Hold 0° inclination. TVD equals MD.' },
-  build: { label: 'Horizontal', blurb: 'KOP 1,100 ft · 8°/100 ft BUR · land at 90° and hold.' },
-  turn: { label: '3D Turn', blurb: 'Build to 60°, then walk azimuth while holding inclination.' },
+const LEVELS: Level[] = [
+  {
+    id: 1,
+    well: 'Mustang 14-23H',
+    name: 'Hold vertical',
+    brief: 'Pilot hole. Inc stays 0°. TVD tracks MD. There is no KOP. Call vertical the whole stand.',
+    wellType: 'vertical',
+    mdMax: 2200,
+    surveyEvery: 90,
+    calls: ['vertical'],
+  },
+  {
+    id: 2,
+    well: 'Mustang 14-23H',
+    name: 'Land the curve',
+    brief: 'KOP 1,100 ft. 8°/100 ft to 90°. Mark KOP, then call build, then lateral when TVD goes flat.',
+    wellType: 'build',
+    mdMax: 2800,
+    surveyEvery: 90,
+    kop: 1100,
+    eob: 2225,
+    calls: ['vertical', 'build', 'lateral'],
+  },
+  {
+    id: 3,
+    well: 'Cedar Camp 9-4H',
+    name: 'See the turn',
+    brief: 'Build to 60°, then walk azi 120°. Profile hides the walk. Open Plan before you call turn.',
+    wellType: 'turn',
+    mdMax: 3400,
+    surveyEvery: 90,
+    kop: 900,
+    eob: 1650,
+    turnStart: 1800,
+    calls: ['vertical', 'build', 'turn', 'hold'],
+  },
+];
+
+const PHASE_META: Record<WellPhase, { label: string; color: string }> = {
+  vertical: { label: 'Vertical', color: '#8a9099' },
+  build: { label: 'Build', color: '#c47b3a' },
+  turn: { label: 'Turn', color: '#4d8ecf' },
+  hold: { label: 'Hold', color: '#3aa8b8' },
+  lateral: { label: 'Lateral', color: '#3ecf8e' },
 };
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
-
 function toRad(deg: number) {
   return (deg * Math.PI) / 180;
 }
-
 function toDeg(rad: number) {
   return (rad * 180) / Math.PI;
 }
 
-function designAngles(md: number, wellType: WellType) {
+function designAngles(md: number, wellType: Level['wellType']) {
   if (wellType === 'vertical') return { inc: 0, azi: 0 };
-
   if (wellType === 'build') {
     const kop = 1100;
-    const bur = 0.08;
-    const inc = md <= kop ? 0 : clamp((md - kop) * bur, 0, 90);
+    const inc = md <= kop ? 0 : clamp((md - kop) * 0.08, 0, 90);
     return { inc, azi: 90 };
   }
-
   const kop = 900;
   const eob = 1650;
   const turnStart = 1800;
@@ -70,36 +117,25 @@ function dogleg(i1: number, a1: number, i2: number, a2: number, dmd: number) {
   return (toDeg(Math.acos(cosDl)) * 100) / dmd;
 }
 
-function buildSurvey(wellType: WellType): SurveyPoint[] {
-  const points: SurveyPoint[] = [{
-    md: 0, inc: 0, azi: 0, tvd: 0, north: 0, east: 0, vs: 0, dls: 0,
-  }];
-
-  const planned = toRad(PLANNED_AZI[wellType]);
-
-  for (let md = MD_STEP; md <= MD_MAX; md += MD_STEP) {
+function buildSurvey(level: Level): SurveyPoint[] {
+  const plannedAzi = level.wellType === 'vertical' ? 0 : level.wellType === 'build' ? 90 : 45;
+  const planned = toRad(plannedAzi);
+  const points: SurveyPoint[] = [{ md: 0, inc: 0, azi: 0, tvd: 0, north: 0, east: 0, vs: 0, dls: 0 }];
+  const step = 25;
+  for (let md = step; md <= level.mdMax; md += step) {
     const prev = points[points.length - 1];
-    const { inc, azi } = designAngles(md, wellType);
+    const { inc, azi } = designAngles(md, level.wellType);
     const dmd = md - prev.md;
     const i1 = toRad(prev.inc);
     const i2 = toRad(inc);
     const a1 = toRad(prev.azi);
     const a2 = toRad(azi);
-    const cosDl = clamp(
-      Math.cos(i1) * Math.cos(i2) + Math.sin(i1) * Math.sin(i2) * Math.cos(a2 - a1),
-      -1,
-      1
-    );
+    const cosDl = clamp(Math.cos(i1) * Math.cos(i2) + Math.sin(i1) * Math.sin(i2) * Math.cos(a2 - a1), -1, 1);
     const dl = Math.acos(cosDl);
     const rf = dl < 1e-8 ? 1 : (2 / dl) * Math.tan(dl / 2);
-    const dN = (dmd / 2) * (Math.sin(i1) * Math.cos(a1) + Math.sin(i2) * Math.cos(a2)) * rf;
-    const dE = (dmd / 2) * (Math.sin(i1) * Math.sin(a1) + Math.sin(i2) * Math.sin(a2)) * rf;
-    const dTvd = (dmd / 2) * (Math.cos(i1) + Math.cos(i2)) * rf;
-    const north = prev.north + dN;
-    const east = prev.east + dE;
-    const tvd = prev.tvd + dTvd;
-    const vs = north * Math.cos(planned) + east * Math.sin(planned);
-
+    const north = prev.north + (dmd / 2) * (Math.sin(i1) * Math.cos(a1) + Math.sin(i2) * Math.cos(a2)) * rf;
+    const east = prev.east + (dmd / 2) * (Math.sin(i1) * Math.sin(a1) + Math.sin(i2) * Math.sin(a2)) * rf;
+    const tvd = prev.tvd + (dmd / 2) * (Math.cos(i1) + Math.cos(i2)) * rf;
     points.push({
       md,
       inc,
@@ -107,37 +143,19 @@ function buildSurvey(wellType: WellType): SurveyPoint[] {
       tvd,
       north,
       east,
-      vs,
+      vs: north * Math.cos(planned) + east * Math.sin(planned),
       dls: dogleg(prev.inc, prev.azi, inc, azi, dmd),
     });
   }
-
   return points;
 }
 
-function phaseLabel(p: SurveyPoint, wellType: WellType) {
-  if (wellType === 'vertical') return 'Vertical';
-  if (p.inc < 2) return 'Vertical';
-  if (wellType === 'build') return p.inc < 88 ? 'Build' : 'Lateral';
-  if (p.inc < 58) return 'Build';
-  return p.dls > 1.5 ? 'Turn' : 'Hold';
-}
-
-function coachCopy(p: SurveyPoint, wellType: WellType) {
-  const phase = phaseLabel(p, wellType);
-  if (phase === 'Vertical') {
-    return 'String is vertical. Inclination is ~0°, so TVD tracks measured depth. Watch for the kickoff once you drill past KOP.';
-  }
-  if (phase === 'Build') {
-    return `Building angle at ${p.dls.toFixed(1)}°/100 ft. Inclination ${p.inc.toFixed(1)}°. TVD gain slows as the well lays over.`;
-  }
-  if (phase === 'Turn') {
-    return `Walking azimuth at ${p.azi.toFixed(0)}° while holding inclination. Plan view shows the 3D dogleg.`;
-  }
-  if (phase === 'Lateral') {
-    return 'Landed. Inclination is ~90°, so TVD is nearly flat while VS and departure keep growing.';
-  }
-  return 'Holding tangent. Dogleg is low — the well is following the planned attitude.';
+function truthPhase(p: SurveyPoint, level: Level): WellPhase {
+  if (level.wellType === 'vertical') return 'vertical';
+  if (p.inc < 2) return 'vertical';
+  if (level.wellType === 'build') return p.inc < 88 ? 'build' : 'lateral';
+  if (p.inc < 58) return 'build';
+  return p.dls > 1.5 ? 'turn' : 'hold';
 }
 
 function extent(values: number[], pad = 0.12) {
@@ -153,50 +171,177 @@ function mapRange(v: number, a0: number, a1: number, b0: number, b1: number) {
   return b0 + ((v - a0) / (a1 - a0)) * (b1 - b0);
 }
 
+function scoreRun(
+  level: Level,
+  samples: { md: number; truth: WellPhase; call: WellPhase }[],
+  marks: { kind: string; md: number }[],
+  usedPlanInTurn: boolean
+) {
+  let match = 0;
+  for (const s of samples) if (s.call === s.truth) match += 1;
+  const acc = samples.length ? match / samples.length : 0;
+  const accPts = clamp(acc * 40, 0, 40);
+
+  const needed: { kind: string; md: number }[] = [];
+  if (level.kop) needed.push({ kind: 'kop', md: level.kop });
+  if (level.eob && level.wellType === 'build') needed.push({ kind: 'eob', md: level.eob });
+  if (level.turnStart) needed.push({ kind: 'turn', md: level.turnStart });
+  let hits = 0;
+  for (const n of needed) {
+    if (marks.some((m) => m.kind === n.kind && Math.abs(m.md - n.md) <= 80)) hits += 1;
+  }
+  if (level.wellType === 'vertical') {
+    hits = marks.some((m) => m.kind === 'kop') ? 0 : 1;
+    needed.push({ kind: 'nokop', md: 0 });
+  }
+  const markPts = needed.length ? clamp((hits / needed.length) * 25, 0, 25) : 25;
+  const viewPts = level.wellType === 'turn' ? (usedPlanInTurn ? 20 : 0) : 20;
+  const fakeKop = level.wellType !== 'vertical' || !marks.some((m) => m.kind === 'kop');
+  const processPts = fakeKop ? 15 : 0;
+  const total = Math.round(accPts + markPts + viewPts + processPts);
+  return { accPts, markPts, viewPts, processPts, total, acc, hits, need: needed.length };
+}
+
+function notesFor(level: Level, sc: ReturnType<typeof scoreRun>, bit: SurveyPoint): string[] {
+  const out: string[] = [];
+  if (sc.acc < 0.7) {
+    out.push(
+      `Phase call ${(sc.acc * 100).toFixed(0)}% . Vertical is inc < 2°. Build is DLS with rising inc. Turn is azi walking at hold inc — look at Plan.`
+    );
+  }
+  if (level.wellType === 'vertical' && sc.processPts === 0) {
+    out.push('You marked a KOP on a vertical. TVD tracked MD the whole way. There was no kickoff.');
+  }
+  if (level.kop && sc.hits < sc.need) {
+    out.push(`Markers ${sc.hits}/${sc.need} inside 80 ft. KOP is where inc leaves 0°, not where you first thought about it.`);
+  }
+  if (level.wellType === 'turn' && sc.viewPts === 0) {
+    out.push('You never opened Plan during the walk. Profile can look like a hold while azi is moving 120°.');
+  }
+  if (!out.length) {
+    out.push(
+      `Survey reads. Last MD ${bit.md.toFixed(0)}, inc ${bit.inc.toFixed(1)}°, TVD ${bit.tvd.toFixed(0)}, DLS ${bit.dls.toFixed(2)}°/100 ft.`
+    );
+  }
+  return out;
+}
+
 const W = 360;
-const H = 200;
-const PAD = { l: 36, r: 12, t: 12, b: 24 };
+const H = 176;
+const PAD = { l: 36, r: 12, t: 14, b: 22 };
 
 export const WellboreTrajectory: React.FC = () => {
-  const [drillDepth, setDrillDepth] = useState(2800);
-  const [wellType, setWellType] = useState<WellType>('build');
+  const first = LEVELS[0];
+  const [levelId, setLevelId] = useState<LevelId>(1);
+  const level = LEVELS[levelId - 1];
+  const [phase, setPhase] = useState<Phase>('run');
+  const [playing, setPlaying] = useState(true);
   const [plotView, setPlotView] = useState<PlotView>('profile');
-  const [playing, setPlaying] = useState(false);
+  const [md, setMd] = useState(200);
+  const [call, setCall] = useState<WellPhase>('vertical');
+  const [samples, setSamples] = useState<{ md: number; truth: WellPhase; call: WellPhase }[]>([]);
+  const [marks, setMarks] = useState<{ kind: string; md: number }[]>([]);
+  const [usedPlanInTurn, setUsedPlanInTurn] = useState(false);
+  const [flash, setFlash] = useState(false);
+  const [rop, setRop] = useState(140);
 
-  const survey = useMemo(() => buildSurvey(wellType), [wellType]);
+  const mdR = useRef(200);
+  const callR = useRef<WellPhase>('vertical');
+  const viewR = useRef<PlotView>('profile');
+  const ropR = useRef(140);
+  const nextSurvey = useRef(first.surveyEvery);
+  const flashTimer = useRef(0);
 
-  const visible = useMemo(
-    () => survey.filter((p) => p.md <= drillDepth),
-    [survey, drillDepth]
-  );
+  mdR.current = md;
+  callR.current = call;
+  viewR.current = plotView;
+  ropR.current = rop;
 
-  const bit = visible[visible.length - 1] ?? survey[0];
-  const casingEnd = survey.find((p) => p.md >= 900) ?? survey[0];
+  const survey = useMemo(() => buildSurvey(level), [level]);
+
+  const loadWell = (id: LevelId, autoplay: boolean) => {
+    const lvl = LEVELS[id - 1];
+    setLevelId(id);
+    setPhase('run');
+    setPlaying(autoplay);
+    setPlotView('profile');
+    setMd(200);
+    setCall('vertical');
+    setSamples([]);
+    setMarks([]);
+    setUsedPlanInTurn(false);
+    setFlash(false);
+    setRop(140);
+    mdR.current = 200;
+    callR.current = 'vertical';
+    viewR.current = 'profile';
+    nextSurvey.current = lvl.surveyEvery;
+  };
+
+  const mark = (kind: string) => {
+    setMarks((m) => [...m, { kind, md: mdR.current }]);
+    setFlash(true);
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlash(false), 1800);
+  };
 
   useEffect(() => {
-    if (!playing) return;
+    if (phase !== 'run' || !playing) return;
     const id = window.setInterval(() => {
-      setDrillDepth((d) => {
-        if (d >= MD_MAX) {
-          setPlaying(false);
-          return MD_MAX;
-        }
-        return Math.min(MD_MAX, d + 50);
+      const lvl = LEVELS[levelId - 1];
+      const next = Math.min(lvl.mdMax, mdR.current + 8 + (ropR.current / 200) * 22);
+      mdR.current = next;
+      setMd(next);
+      const pt = survey.find((p) => p.md >= next) ?? survey[survey.length - 1];
+      const truth = truthPhase(pt, lvl);
+      if (truth === 'turn' && viewR.current === 'plan') setUsedPlanInTurn(true);
+      setSamples((s) => {
+        const last = s[s.length - 1];
+        if (last && next - last.md < 40) return s;
+        return [...s, { md: next, truth, call: callR.current }];
       });
-    }, 70);
+      if (next >= nextSurvey.current) {
+        nextSurvey.current += lvl.surveyEvery;
+        setFlash(true);
+        window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(() => setFlash(false), 1600);
+      }
+      if (next >= lvl.mdMax) {
+        setPlaying(false);
+        setPhase('debrief');
+      }
+    }, 80);
     return () => window.clearInterval(id);
-  }, [playing]);
+  }, [phase, levelId, playing, survey]);
 
-  useEffect(() => {
-    setPlaying(false);
-    setDrillDepth(wellType === 'vertical' ? 2200 : 2800);
-  }, [wellType]);
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  const visible = useMemo(() => survey.filter((p) => p.md <= md), [survey, md]);
+  const bit = visible[visible.length - 1] ?? survey[0];
+  const truth = truthPhase(bit, level);
+  const sc = useMemo(
+    () => scoreRun(level, samples, marks, usedPlanInTurn),
+    [level, samples, marks, usedPlanInTurn]
+  );
+  const debriefNotes = useMemo(() => notesFor(level, sc, bit), [level, sc, bit]);
+
+  const chip =
+    phase === 'debrief'
+      ? sc.total >= 75
+        ? { label: 'Send', cls: 'text-[#3ecf8e]', bar: '#3ecf8e' }
+        : { label: 'Miss', cls: 'text-[#d4a017]', bar: '#d4a017' }
+      : flash
+        ? { label: 'Station', cls: 'text-[#d4a017]', bar: '#d4a017' }
+        : !playing
+          ? { label: 'Paused', cls: 'text-[#8a9099]', bar: '#8a9099' }
+          : call === truth
+            ? { label: PHASE_META[truth].label, cls: 'text-[#3ecf8e]', bar: PHASE_META[truth].color }
+            : { label: 'Off phase', cls: 'text-[#d4a017]', bar: '#d4a017' };
 
   const plot = useMemo(() => {
     const innerW = W - PAD.l - PAD.r;
     const innerH = H - PAD.t - PAD.b;
     const fit = survey;
-
     if (plotView === 'plan') {
       const nExt = extent(fit.map((p) => p.north));
       const eExt = extent(fit.map((p) => p.east));
@@ -216,20 +361,23 @@ export const WellboreTrajectory: React.FC = () => {
         xTickPos: (v: number) => xOf(v),
       };
     }
-
     if (plotView === 'iso') {
       const project = (p: SurveyPoint) => ({
         x: (p.east - p.north) * 0.866,
         y: p.tvd * 0.72 + (p.east + p.north) * 0.35,
       });
       const proj = fit.map(project);
-      const xExt = extent(proj.map((p) => p.x), 0.16);
-      const yExt = extent(proj.map((p) => p.y), 0.1);
-      const xOf = (p: SurveyPoint) => mapRange(project(p).x, xExt.min, xExt.max, PAD.l, PAD.l + innerW);
-      const yOf = (p: SurveyPoint) => mapRange(project(p).y, yExt.min, yExt.max, PAD.t, PAD.t + innerH);
+      const xExt = extent(
+        proj.map((p) => p.x),
+        0.16
+      );
+      const yExt = extent(
+        proj.map((p) => p.y),
+        0.1
+      );
       return {
-        xOf,
-        yOf,
+        xOf: (p: SurveyPoint) => mapRange(project(p).x, xExt.min, xExt.max, PAD.l, PAD.l + innerW),
+        yOf: (p: SurveyPoint) => mapRange(project(p).y, yExt.min, yExt.max, PAD.t, PAD.t + innerH),
         xLabel: 'N / E departure',
         yLabel: 'TVD down',
         yTicks: [] as number[],
@@ -238,14 +386,14 @@ export const WellboreTrajectory: React.FC = () => {
         xTickPos: () => 0,
       };
     }
-
-    const vsExt = extent(fit.map((p) => p.vs), 0.08);
+    const vsExt = extent(
+      fit.map((p) => p.vs),
+      0.08
+    );
     const tvdMax = Math.max(...fit.map((p) => p.tvd), 400);
-    const xOf = (p: SurveyPoint) => mapRange(p.vs, vsExt.min, Math.max(vsExt.max, 120), PAD.l, PAD.l + innerW);
-    const yOf = (p: SurveyPoint) => mapRange(p.tvd, 0, tvdMax * 1.06, PAD.t, PAD.t + innerH);
     return {
-      xOf,
-      yOf,
+      xOf: (p: SurveyPoint) => mapRange(p.vs, vsExt.min, Math.max(vsExt.max, 120), PAD.l, PAD.l + innerW),
+      yOf: (p: SurveyPoint) => mapRange(p.tvd, 0, tvdMax * 1.06, PAD.t, PAD.t + innerH),
       xLabel: 'Vertical section (ft)',
       yLabel: 'TVD (ft)',
       yTicks: [0, tvdMax / 2, tvdMax],
@@ -253,250 +401,255 @@ export const WellboreTrajectory: React.FC = () => {
       yTickPos: (v: number) => mapRange(v, 0, tvdMax * 1.06, PAD.t, PAD.t + innerH),
       xTickPos: (v: number) => mapRange(v, vsExt.min, Math.max(vsExt.max, 120), PAD.l, PAD.l + innerW),
     };
-  }, [visible, survey, plotView]);
+  }, [survey, plotView]);
 
   const pathD = visible
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${plot.xOf(p).toFixed(1)},${plot.yOf(p).toFixed(1)}`)
     .join(' ');
 
-  const casingPts = visible.filter((p) => p.md <= casingEnd.md);
-  const casingD = casingPts
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${plot.xOf(p).toFixed(1)},${plot.yOf(p).toFixed(1)}`)
-    .join(' ');
-
-  const bitX = plot.xOf(bit);
-  const bitY = plot.yOf(bit);
-  const phase = phaseLabel(bit, wellType);
-
-  const formations = plotView === 'profile'
-    ? [
-        { top: 0, bot: 0.22, fill: '#14532d', label: 'Surface' },
-        { top: 0.22, bot: 0.48, fill: '#1c1917', label: 'Shale' },
-        { top: 0.48, bot: 0.72, fill: '#44403c', label: 'Sand' },
-        { top: 0.72, bot: 1, fill: '#064e3b', label: 'Target' },
-      ]
-    : [];
-
-  const fmt = (n: number, d = 0) => n.toFixed(d);
-  const ns = bit.north >= 0 ? `${fmt(bit.north, 0)} N` : `${fmt(-bit.north, 0)} S`;
-  const ew = bit.east >= 0 ? `${fmt(bit.east, 0)} E` : `${fmt(-bit.east, 0)} W`;
+  const tvdLag = bit.md - bit.tvd;
+  const coach = (() => {
+    if (phase === 'debrief') return debriefNotes[0];
+    if (call !== truth) {
+      return `Survey is ${PHASE_META[truth].label.toLowerCase()}. You have ${PHASE_META[call].label}. Inc ${bit.inc.toFixed(1)}° · DLS ${bit.dls.toFixed(1)}°/100 · azi ${bit.azi.toFixed(0)}°.`;
+    }
+    if (truth === 'vertical') {
+      return `Vertical. TVD ${bit.tvd.toFixed(0)} vs MD ${bit.md.toFixed(0)}. They track until KOP.`;
+    }
+    if (truth === 'build') {
+      return `Build. Inc ${bit.inc.toFixed(1)}° at ${bit.dls.toFixed(1)}°/100 ft. TVD is already ${tvdLag.toFixed(0)} ft behind MD.`;
+    }
+    if (truth === 'turn') {
+      return `Turn. Inc is holding ~${bit.inc.toFixed(0)}° while azi walks to ${bit.azi.toFixed(0)}°. Profile looks quiet. Plan is the proof.`;
+    }
+    if (truth === 'lateral') {
+      return `Lateral. Inc ~90°. TVD is flat. VS and departure keep growing.`;
+    }
+    return `Hold. Dogleg ${bit.dls.toFixed(1)}°/100 ft. Attitude is steady.`;
+  })();
 
   return (
-    <div className="instrument space-y-3">
-      <div className="instrument-header mb-0">
-        <div className="instrument-title-row">
-          <div className="instrument-icon">
-            <Crosshair size={16} />
-          </div>
-          <div>
-            <h3 className="instrument-title">Wellbore Trajectory</h3>
-            <p className="instrument-subtitle">Minimum-curvature survey · live bit</p>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="label-caps">Survey path</p>
+          <h3 className="instrument-title mt-1">Wellbore Trajectory</h3>
+          <p className="mt-1.5 min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{level.brief}</p>
         </div>
-        <span className="instrument-chip">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          {phase}
+        <span className={`hmi-lamp w-[5.8rem] shrink-0 justify-end whitespace-nowrap ${chip.cls}`}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
+          {chip.label}
         </span>
       </div>
 
-      <div className="flex gap-1.5">
-        {(['vertical', 'build', 'turn'] as const).map((type) => (
+      <div className="grid grid-cols-3 gap-1.5">
+        {LEVELS.map((lvl) => (
           <button
-            key={type}
+            key={lvl.id}
             type="button"
-            onClick={() => setWellType(type)}
-            className={`instrument-btn flex-1 ${wellType === type ? 'is-active' : ''}`}
+            onClick={() => loadWell(lvl.id, true)}
+            className={`hmi-key px-1.5 ${levelId === lvl.id ? 'is-on' : ''}`}
+            style={levelId === lvl.id ? { borderColor: '#3ecf8e99', color: '#3ecf8e' } : undefined}
           >
-            {WELL_META[type].label}
+            {lvl.name}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-1">
-        {([
-          ['profile', MoveDown, 'Profile'],
-          ['plan', Compass, 'Plan'],
-          ['iso', Box, '3D'],
-        ] as const).map(([id, Icon, label]) => (
+      <div className="flex gap-1.5">
+        {(
+          [
+            ['profile', 'Profile'],
+            ['plan', 'Plan'],
+            ['iso', '3D'],
+          ] as const
+        ).map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => setPlotView(id)}
-            className={`instrument-btn flex-1 ${plotView === id ? 'is-active' : ''}`}
+            className={`hmi-key flex-1 ${plotView === id ? 'is-on' : ''}`}
           >
-            <Icon size={12} />
             {label}
           </button>
         ))}
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#07080a] max-h-[38vh]">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto block max-h-[38vh]" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Wellbore path plot">
-          <defs>
-            <linearGradient id="wb-path" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#059669" />
-            </linearGradient>
-            <radialGradient id="wb-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#34d399" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id="wb-sky" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0c1220" />
-              <stop offset="100%" stopColor="#07080a" />
-            </linearGradient>
-          </defs>
-
-          <rect width={W} height={H} fill="url(#wb-sky)" />
-
-          {formations.map((f) => {
-            const y0 = PAD.t + (H - PAD.t - PAD.b) * f.top;
-            const y1 = PAD.t + (H - PAD.t - PAD.b) * f.bot;
-            return (
-              <g key={f.label}>
-                <rect
-                  x={PAD.l}
-                  y={y0}
-                  width={W - PAD.l - PAD.r}
-                  height={y1 - y0}
-                  fill={f.fill}
-                  opacity={0.28}
-                />
-                <text
-                  x={W - PAD.r - 4}
-                  y={(y0 + y1) / 2 + 3}
-                  textAnchor="end"
-                  fill="#a1a1aa"
-                  fontSize="8"
-                  letterSpacing="0.08em"
-                >
-                  {f.label.toUpperCase()}
-                </text>
-              </g>
-            );
-          })}
-
+      <div className="overflow-hidden border border-[#1d2026] bg-[#07080a]">
+        <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-hidden" role="img" aria-label="Wellbore survey plot">
+          <rect width={W} height={H} fill="#07080a" />
           {plot.yTicks.map((t) => (
             <g key={`y-${t}`}>
-              <line
-                x1={PAD.l}
-                x2={W - PAD.r}
-                y1={plot.yTickPos(t)}
-                y2={plot.yTickPos(t)}
-                stroke="rgba(255,255,255,0.06)"
-              />
-              <text x={PAD.l - 6} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#71717a" fontSize="8">
+              <line x1={PAD.l} x2={W - PAD.r} y1={plot.yTickPos(t)} y2={plot.yTickPos(t)} stroke="#1d2026" />
+              <text x={PAD.l - 5} y={plot.yTickPos(t) + 3} textAnchor="end" fill="#5c636e" fontSize="8">
                 {Math.round(t)}
               </text>
             </g>
           ))}
           {plot.xTicks.map((t) => (
             <g key={`x-${t}`}>
-              <line
-                y1={PAD.t}
-                y2={H - PAD.b}
-                x1={plot.xTickPos(t)}
-                x2={plot.xTickPos(t)}
-                stroke="rgba(255,255,255,0.05)"
-              />
-              <text x={plot.xTickPos(t)} y={H - 10} textAnchor="middle" fill="#71717a" fontSize="8">
+              <line y1={PAD.t} y2={H - PAD.b} x1={plot.xTickPos(t)} x2={plot.xTickPos(t)} stroke="#1d2026" />
+              <text x={plot.xTickPos(t)} y={H - 7} textAnchor="middle" fill="#5c636e" fontSize="8">
                 {Math.round(t)}
               </text>
             </g>
           ))}
-
-          <text
-            x={12}
-            y={H / 2}
-            fill="#52525b"
-            fontSize="8"
-            letterSpacing="0.12em"
-            transform={`rotate(-90 12 ${H / 2})`}
-            textAnchor="middle"
-          >
-            {plot.yLabel.toUpperCase()}
+          {pathD && <path d={pathD} fill="none" stroke="#3ecf8e" strokeWidth="1.45" />}
+          {visible
+            .filter((p) => p.md > 0 && p.md % 90 < 26)
+            .map((p) => (
+              <circle key={p.md} cx={plot.xOf(p)} cy={plot.yOf(p)} r="1.7" fill="#8a9099" />
+            ))}
+          <circle cx={plot.xOf(bit)} cy={plot.yOf(bit)} r="2.4" fill="#e6e8eb" />
+          <text x={PAD.l} y={10} fill="#5c636e" fontSize="8">
+            {plot.yLabel}
           </text>
-          <text x={W / 2} y={H - 4} fill="#52525b" fontSize="8" letterSpacing="0.12em" textAnchor="middle">
-            {plot.xLabel.toUpperCase()}
+          <text x={W - PAD.r} y={H - 7} textAnchor="end" fill="#5c636e" fontSize="8">
+            {plot.xLabel}
           </text>
-
-          {plotView === 'plan' && (
-            <g transform={`translate(${W - 46}, ${PAD.t + 28})`}>
-              <circle r="16" fill="rgba(0,0,0,0.45)" stroke="rgba(255,255,255,0.12)" />
-              <polygon points="0,-12 3,-2 -3,-2" fill="#fafafa" />
-              <text y="12" textAnchor="middle" fill="#a1a1aa" fontSize="7" fontWeight="700">N</text>
-            </g>
-          )}
-
-          {casingD && (
-            <path d={casingD} fill="none" stroke="#a1a1aa" strokeWidth="4.5" strokeLinecap="round" opacity="0.35" />
-          )}
-          {pathD && (
-            <path d={pathD} fill="none" stroke="url(#wb-path)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-          )}
-
-          <circle cx={plot.xOf(survey[0])} cy={plot.yOf(survey[0])} r="3" fill="#e4e4e7" />
-          <circle cx={bitX} cy={bitY} r="14" fill="url(#wb-glow)" />
-          <circle cx={bitX} cy={bitY} r="4.5" fill="#ecfdf5" stroke="#34d399" strokeWidth="1.5" />
-          <line x1={bitX - 9} x2={bitX + 9} y1={bitY} y2={bitY} stroke="#34d399" strokeOpacity="0.45" />
-          <line x1={bitX} x2={bitX} y1={bitY - 9} y2={bitY + 9} stroke="#34d399" strokeOpacity="0.45" />
         </svg>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-y border-[#1d2026] py-2">
         {[
-          ['MD', `${fmt(bit.md, 0)} ft`],
-          ['INC', `${fmt(bit.inc, 1)}°`],
-          ['AZI', `${fmt(bit.azi, 1)}°`],
-          ['TVD', `${fmt(bit.tvd, 0)} ft`],
-          ['N / E', `${ns}  ${ew}`],
-          ['DLS', `${fmt(bit.dls, 1)}°/100`],
-        ].map(([label, value]) => (
-          <div key={label} className="instrument-metric py-2.5 px-2.5">
-            <p className="instrument-metric-label">{label}</p>
-            <p className="instrument-metric-value text-[15px] leading-tight">{value}</p>
+          { l: 'MD', v: bit.md.toFixed(0), u: 'ft' },
+          { l: 'Inc', v: bit.inc.toFixed(1), u: '°' },
+          { l: 'TVD', v: bit.tvd.toFixed(0), u: 'ft', warn: level.wellType !== 'vertical' && tvdLag > 40 },
+          { l: 'DLS', v: bit.dls.toFixed(1), u: '/100', warn: bit.dls > 8 },
+        ].map((row) => (
+          <div key={row.l}>
+            <p className="label-caps">{row.l}</p>
+            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#d4a017]' : 'text-[#e6e8eb]'}`}>
+              {row.v}
+              <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="label-caps">Bit depth</span>
-          <span className="text-xs font-mono text-zinc-300 tabular-nums">{fmt(drillDepth, 0)} ft MD</span>
-        </div>
-        <div className="flex items-center gap-2">
+      <p className="hmi-readout text-[11px] text-[#8a9099]">
+        Azi {bit.azi.toFixed(1)}°
+        <span className="text-[#5c636e]"> · </span>
+        VS {bit.vs.toFixed(0)}
+        <span className="text-[#5c636e]"> · </span>
+        {bit.north >= 0 ? `${bit.north.toFixed(0)} N` : `${(-bit.north).toFixed(0)} S`}{' '}
+        {bit.east >= 0 ? `${bit.east.toFixed(0)} E` : `${(-bit.east).toFixed(0)} W`}
+        <span className="text-[#5c636e]"> · </span>
+        MD−TVD {tvdLag.toFixed(0)}
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {level.calls.map((p) => (
           <button
+            key={p}
             type="button"
-            onClick={() => setPlaying((p) => !p)}
-            className="instrument-btn px-2.5 py-2"
-            aria-label={playing ? 'Pause drilling' : 'Play drilling'}
+            onClick={() => setCall(p)}
+            className={`hmi-key flex-1 ${call === p ? 'is-on' : ''}`}
+            style={call === p ? { borderColor: `${PHASE_META[p].color}cc`, color: PHASE_META[p].color } : undefined}
           >
-            {playing ? <Pause size={14} /> : <Play size={14} />}
+            {PHASE_META[p].label}
           </button>
-          <input
-            type="range"
-            min={0}
-            max={MD_MAX}
-            step={MD_STEP}
-            value={drillDepth}
-            onChange={(e) => {
-              setPlaying(false);
-              setDrillDepth(Number(e.target.value));
-            }}
-            className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-            aria-label="Measured depth"
-          />
-        </div>
-        <p className="text-[11px] text-zinc-500">{WELL_META[wellType].blurb}</p>
+        ))}
       </div>
 
-      <div className="instrument-tip">
-        <Info size={14} className="text-zinc-500 shrink-0 mt-0.5" />
-        <p>
-          <span className="text-zinc-300 font-medium">{phase}. </span>
-          {coachCopy(bit, wellType)} Profile is TVD vs vertical section. Plan is north vs east. 3D is an isometric of the same surveys.
-        </p>
+      <div className="flex gap-1.5">
+        {level.wellType !== 'vertical' && (
+          <button type="button" onClick={() => mark('kop')} className="hmi-key flex-1">
+            Mark KOP
+          </button>
+        )}
+        {level.eob && level.wellType === 'build' && (
+          <button type="button" onClick={() => mark('eob')} className="hmi-key flex-1">
+            Mark EOB
+          </button>
+        )}
+        {level.turnStart && (
+          <button type="button" onClick={() => mark('turn')} className="hmi-key flex-1">
+            Mark turn
+          </button>
+        )}
+        {level.wellType === 'vertical' && (
+          <button type="button" onClick={() => mark('kop')} className="hmi-key flex-1">
+            Mark KOP
+          </button>
+        )}
       </div>
+
+      <label className="flex items-center gap-2">
+        <span className="label-caps w-8">ROP</span>
+        <input
+          type="range"
+          min={40}
+          max={220}
+          step={5}
+          value={rop}
+          onChange={(e) => setRop(Number(e.target.value))}
+          className="h-1 flex-1 appearance-none bg-[#1d2026] accent-[#3ecf8e]"
+        />
+        <span className="hmi-readout w-8 text-right text-[11px] text-[#e6e8eb]">{rop}</span>
+      </label>
+
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => (phase === 'debrief' ? loadWell(levelId, true) : setPlaying((p) => !p))}
+          className="hmi-key is-on flex-1"
+          style={{ borderColor: '#3ecf8e99', color: '#3ecf8e' }}
+        >
+          {phase === 'debrief' ? (
+            <>
+              <Play size={12} /> Again
+            </>
+          ) : playing ? (
+            <>
+              <Pause size={12} /> Pause
+            </>
+          ) : (
+            <>
+              <Play size={12} /> Drill
+            </>
+          )}
+        </button>
+        <button type="button" onClick={() => loadWell(levelId, true)} className="hmi-key" aria-label="Reset well">
+          <RotateCcw size={12} />
+        </button>
+      </div>
+
+      <p className={`min-h-[1.15rem] hmi-readout text-[11px] text-[#d4a017] ${flash ? 'visible' : 'invisible'}`}>
+        Station {bit.md.toFixed(0)} · Inc {bit.inc.toFixed(1)}° · TVD {bit.tvd.toFixed(0)} · DLS {bit.dls.toFixed(2)}
+      </p>
+
+      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{coach}</p>
+
+      {phase === 'debrief' && (
+        <div className="space-y-2 border-t border-[#1d2026] pt-3">
+          <p className="hmi-readout text-[22px] leading-none text-[#e6e8eb]">
+            {sc.total}
+            <span className="ml-1 text-[11px] text-[#5c636e]">/ 100</span>
+          </p>
+          {[
+            { l: 'Phase call', v: `${(sc.acc * 100).toFixed(0)}%`, p: sc.accPts, max: 40 },
+            { l: 'Markers ±80 ft', v: `${sc.hits}/${sc.need}`, p: sc.markPts, max: 25 },
+            { l: 'Plan on the turn', v: level.wellType === 'turn' ? (usedPlanInTurn ? 'Used' : 'Never') : 'n/a', p: sc.viewPts, max: 20 },
+            { l: 'No false KOP', v: sc.processPts ? 'Hold' : 'False KOP', p: sc.processPts, max: 15 },
+          ].map((row) => (
+            <div key={row.l} className="flex items-baseline justify-between gap-3 text-[12px]">
+              <span className="text-[#8a9099]">{row.l}</span>
+              <span className="hmi-readout text-[#e6e8eb]">
+                {row.v}
+                <span className="ml-2 text-[#5c636e]">
+                  {Math.round(row.p)}/{row.max}
+                </span>
+              </span>
+            </div>
+          ))}
+          {debriefNotes.slice(1).map((n) => (
+            <p key={n} className="text-[12px] leading-relaxed text-[#8a9099]">
+              {n}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

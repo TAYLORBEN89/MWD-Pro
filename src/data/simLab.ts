@@ -44,7 +44,7 @@ export const simLabCatalog: SimLabItem[] = [
   {
     id: 'trajectory',
     title: 'Wellbore Trajectory',
-    subtitle: 'Profile, plan, and 3D survey path',
+    subtitle: 'Read the survey. Name the phase.',
     isFree: true,
     sectionId: 'section-4',
     icon: Navigation,

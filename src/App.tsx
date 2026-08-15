@@ -668,8 +668,8 @@ export default function App() {
                           </div>
                           
                           <div className="space-y-4">
-                            <h3 className="text-lg title-display">Wellbore Trajectory Visualization</h3>
-                            <p className="body-muted">Scrub the bit along a minimum-curvature survey and switch profile, plan, and 3D views.</p>
+                            <h3 className="text-lg title-display">Wellbore Trajectory</h3>
+                            <p className="body-muted">Read min-curvature. Call vertical, build, turn, or lateral. Open Plan when azi walks.</p>
                             <WellboreTrajectory />
                           </div>
                         </div>
