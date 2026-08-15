@@ -62,10 +62,13 @@ import { getModuleCover } from './data/moduleCovers';
 import { CurriculumSection, QuizQuestion } from './types';
 import { useFirebase } from './FirebaseContext';
 import { CinemaAdMode } from './components/CinemaAdMode';
+import { App as CapApp } from '@capacitor/app';
 import { isNative } from './lib/platform';
 import { getApiUrl } from './lib/api';
 import { payments } from './lib/payments';
 import { httpClient } from './lib/httpClient';
+import { loadUiSession, saveUiSession, clearUiSession } from './lib/session';
+import type { AppView } from './lib/session';
 import { requestCertificateEmail } from './lib/emailClient';
 import { bearerHeaders } from './lib/authToken';
 
@@ -179,9 +182,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 export default function App() {
   const { user, login, logout, saveQuizResult, results, loading, hasPurchased, badges } = useFirebase();
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(() => Boolean(loadUiSession()?.hasStarted));
   const prevUserRef = useRef(user);
-  const [stripePubKey, setStripePubKey] = useState<string | null>(null);
+  const envStripeKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim() || null;
+  const [stripePubKey, setStripePubKey] = useState<string | null>(
+    envStripeKey && envStripeKey.length > 5 && !envStripeKey.includes('TODO') ? envStripeKey : null
+  );
   const [serverTime, setServerTime] = useState<string | null>(null);
   const [serverConfig, setServerConfig] = useState<{hasPubKey: boolean, hasSecKey: boolean, hasAppUrl: boolean} | null>(null);
   const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
@@ -236,15 +242,10 @@ export default function App() {
           setServerConfig(data.config);
         }
         
-        // Ensure the key is valid before saving it
         if (data.stripePublishableKey && data.stripePublishableKey.length > 5) {
           setStripePubKey(data.stripePublishableKey);
-        } else {
-          console.error("The server returned an empty or invalid Stripe key.");
-          // Native apps use Google Play / App Store — Stripe keys are only required on web
-          if (!isNative()) {
-            setPurchaseError("Stripe is not configured on the server yet. Web unlock needs Stripe keys in Vercel.");
-          }
+        } else if (!isNative() && !envStripeKey) {
+          console.error('The server returned an empty or invalid Stripe key.');
         }
         
         if (data.serverTime) {
@@ -252,9 +253,8 @@ export default function App() {
         }
       })
       .catch(err => {
-        console.error("CRITICAL: Failed to fetch Stripe config:", err);
+        console.error('Failed to fetch /api/config:', err);
         setApiStatus('error');
-        setPurchaseError(`Connection Failed: ${err.message || "Unknown Error"}`);
       });
   }, [user]);
 
@@ -265,6 +265,8 @@ export default function App() {
 
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [gateNotice, setGateNotice] = useState<string | null>(null);
+  const skipHistoryPush = useRef(true);
 
   // Check if Stripe keys are configured
   const showDiagnostics = Boolean(import.meta.env.DEV) || import.meta.env.VITE_SHOW_DIAGNOSTICS === 'true';
@@ -281,7 +283,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success' && params.get('session_id')) {
       sessionStorage.setItem('mwdCheckoutSession', params.get('session_id') as string);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({ mwd: true }, document.title, window.location.pathname);
     }
 
     const sessionId = sessionStorage.getItem('mwdCheckoutSession');
@@ -350,18 +352,24 @@ export default function App() {
       setHasStarted(false);
       setView('curriculum');
       setCurrentSectionId(null);
+      setActiveSimId(null);
+      clearUiSession();
     }
     prevUserRef.current = user;
   }, [user, hasStarted]);
 
-  const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
-  const [view, setView] = useState<'curriculum' | 'quiz' | 'results' | 'certification' | 'profile' | 'simlab'>('curriculum');
-  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [currentSectionId, setCurrentSectionId] = useState<string | null>(() => loadUiSession()?.currentSectionId ?? null);
+  const [view, setView] = useState<AppView>(() => loadUiSession()?.view ?? 'curriculum');
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>(() => loadUiSession()?.quizAnswers ?? {});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>(() => {
+    const saved = loadUiSession()?.quizQuestions;
+    return Array.isArray(saved) ? (saved as QuizQuestion[]) : [];
+  });
+  const [quizIndex, setQuizIndex] = useState(() => loadUiSession()?.quizIndex ?? 0);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeSimId, setActiveSimId] = useState<string | null>(null);
+  const [activeSimId, setActiveSimId] = useState<string | null>(() => loadUiSession()?.activeSimId ?? null);
   const ActiveSim = activeSimId ? simLabRenderers[activeSimId] : null;
   const [certEmailStatus, setCertEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
   const [showCinemaAd, setShowCinemaAd] = useState(false);
@@ -369,6 +377,102 @@ export default function App() {
   useEffect(() => {
     setCertEmailStatus('idle');
   }, [user?.uid]);
+
+  useEffect(() => {
+    if (isNative()) return;
+    const saved = loadUiSession();
+    if (!saved?.hasStarted) return;
+    history.replaceState({ mwd: 'root' }, '');
+    if (saved.view !== 'curriculum' || saved.currentSectionId || saved.activeSimId) {
+      history.pushState({ mwd: 'child' }, '');
+    }
+    skipHistoryPush.current = true;
+  }, []);
+
+  useEffect(() => {
+    if ((view === 'quiz' || view === 'results') && currentQuizQuestions.length === 0) {
+      setView('curriculum');
+    }
+  }, [view, currentQuizQuestions.length]);
+
+  useEffect(() => {
+    if (!hasStarted) {
+      clearUiSession();
+      return;
+    }
+    saveUiSession({
+      hasStarted,
+      view,
+      currentSectionId,
+      activeSimId,
+      quizIndex,
+      quizAnswers,
+      quizQuestions: view === 'quiz' || view === 'results' ? currentQuizQuestions : null,
+    });
+  }, [hasStarted, view, currentSectionId, activeSimId, quizIndex, quizAnswers, currentQuizQuestions]);
+
+  const goBackInApp = () => {
+    if (showCinemaAd) {
+      setShowCinemaAd(false);
+      return true;
+    }
+    if (view === 'certification') {
+      setView('profile');
+      return true;
+    }
+    if (view === 'quiz' || view === 'results') {
+      setView('curriculum');
+      return true;
+    }
+    if (view === 'simlab' && activeSimId) {
+      setActiveSimId(null);
+      return true;
+    }
+    if (view === 'simlab' || view === 'profile') {
+      setView('curriculum');
+      setCurrentSectionId(null);
+      return true;
+    }
+    if (currentSectionId) {
+      setCurrentSectionId(null);
+      return true;
+    }
+    if (hasStarted) {
+      setHasStarted(false);
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const onPop = () => {
+      skipHistoryPush.current = true;
+      goBackInApp();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [hasStarted, view, currentSectionId, activeSimId, showCinemaAd]);
+
+  useEffect(() => {
+    if (isNative()) return;
+    if (skipHistoryPush.current) {
+      skipHistoryPush.current = false;
+      return;
+    }
+    if (!hasStarted && !showCinemaAd) return;
+    history.pushState({ mwd: true }, '');
+  }, [hasStarted, view, currentSectionId, activeSimId, showCinemaAd]);
+
+  useEffect(() => {
+    if (!isNative()) return;
+    const sub = CapApp.addListener('backButton', () => {
+      const handled = goBackInApp();
+      if (!handled) void CapApp.exitApp();
+    });
+    return () => {
+      void sub.then((handle) => handle.remove());
+    };
+  }, [hasStarted, view, currentSectionId, activeSimId, showCinemaAd]);
 
   const profileLog = useMemo(() => {
     return mwdCurriculum.map((section, index) => {
@@ -416,9 +520,8 @@ export default function App() {
 
   const filteredCurriculum = useMemo(() => {
     if (!searchTerm) return mwdCurriculum;
-    return mwdCurriculum.filter(s => 
-      s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.content.toLowerCase().includes(searchTerm.toLowerCase())
+    return mwdCurriculum.filter(s =>
+      s.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm]);
 
@@ -438,7 +541,7 @@ export default function App() {
 
   const startQuiz = (section: CurriculumSection) => {
     if (!section.quizQuestions || section.quizQuestions.length === 0) {
-      alert("Quiz content for this section is coming soon!");
+      setGateNotice('Quiz content for this section is coming soon.');
       return;
     }
     
@@ -468,6 +571,7 @@ export default function App() {
     setCurrentQuizQuestions(shuffledQuestions);
     setQuizAnswers({});
     setQuizSubmitted(false);
+    setQuizIndex(0);
     setView('quiz');
   };
 
@@ -536,14 +640,17 @@ export default function App() {
           </div>
 
           <button
-            onClick={() => setHasStarted(true)}
+            onClick={() => {
+              skipHistoryPush.current = false;
+              setHasStarted(true);
+            }}
             className="w-full btn-primary py-4 text-base"
           >
             Get Started
           </button>
 
           <p className="label-caps text-zinc-600">
-            Version 4.2.15 • Professional Edition
+            Version 1.11 • Professional Edition
           </p>
         </motion.div>
       </div>
@@ -569,7 +676,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           {(currentSectionId || view !== 'curriculum') && (
             <button 
-              onClick={() => { setView('curriculum'); setCurrentSectionId(null); }}
+              onClick={() => { setView('curriculum'); setCurrentSectionId(null); setActiveSimId(null); }}
               className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-100 transition-colors"
             >
               <LayoutGrid size={20} />
@@ -599,6 +706,25 @@ export default function App() {
       </header>
 
       <main className="app-main app-rail">
+        {gateNotice && (
+          <div className="mb-4 surface-card border border-emerald-500/25 p-3 flex items-start gap-3">
+            <p className="flex-1 text-sm text-zinc-200 leading-relaxed">{gateNotice}</p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-zinc-400 hover:text-zinc-100"
+              onClick={() => setGateNotice(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {gateNotice && !hasPurchased && (
+          <div className="mb-4">
+            <button type="button" className="btn-primary w-full" onClick={() => (user ? handlePurchase() : login())}>
+              {user ? 'Unlock full access — $49' : 'Sign in to unlock'}
+            </button>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {view === 'curriculum' && (
             <motion.div 
@@ -754,7 +880,7 @@ export default function App() {
 
                       {currentSection.id === 'section-13' && (
                         <div className="mt-6 space-y-4">
-                          <h3 className="text-lg title-display">Advanced LWD Sensor Dashboard</h3>
+                          <h3 className="text-lg title-display">Lab · Advanced LWD Sensor Dashboard</h3>
                           <p className="body-muted">Explore advanced formation evaluation logs including Resistivity, Density, and Neutron porosity.</p>
                           <AdvancedLogs />
                         </div>
@@ -762,7 +888,7 @@ export default function App() {
 
                       {currentSection.id === 'section-14' && (
                         <div className="mt-6 space-y-4">
-                          <h3 className="text-lg title-display">Survey Quality Control</h3>
+                          <h3 className="text-lg title-display">Lab · Survey Quality Control</h3>
                           <p className="body-muted">Validate survey data by checking G-Total, B-Total, and Dip Angle against expected magnetic models.</p>
                           <SurveyQuality />
                         </div>
@@ -824,9 +950,11 @@ export default function App() {
                   </div>
 
                   <div className="relative">
+                    <label htmlFor="module-search" className="sr-only">Search modules</label>
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
                     <input
-                      type="text"
+                      id="module-search"
+                      type="search"
                       placeholder="Search modules..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -846,17 +974,24 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             if (isLocked) {
-                              if (!user) login();
-                              else handlePurchase();
+                              if (!user) {
+                                setGateNotice('Sign in to unlock the full 15-module course.');
+                                login();
+                              } else {
+                                handlePurchase();
+                              }
                               return;
                             }
+                            setSearchTerm('');
                             setCurrentSectionId(section.id);
                           }}
                           className={`group module-photo-card ${isCompleted ? 'is-complete' : ''} ${isLocked ? 'is-locked' : ''}`}
+                          aria-label={`${isLocked ? 'Locked. ' : ''}Module ${index + 1}: ${section.title}`}
                         >
                           <img
                             src={getModuleCover(section.id)}
                             alt=""
+                            role="presentation"
                             className="module-photo-bg"
                             loading="lazy"
                             decoding="async"
@@ -940,6 +1075,9 @@ export default function App() {
                           <Search size={32} />
                         </div>
                         <p className="text-zinc-500 text-sm">No modules found matching "{searchTerm}"</p>
+                        <button type="button" className="btn-secondary text-sm" onClick={() => setSearchTerm('')}>
+                          Clear search
+                        </button>
                       </div>
                     )}
                 </div>
@@ -956,71 +1094,95 @@ export default function App() {
               className="space-y-8"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-xl title-display">Knowledge Check</h2>
+                <h2 className="text-xl title-display">
+                  {currentSectionId === 'section-15' ? 'Final Assessment' : 'Knowledge Check'}
+                </h2>
                 <span className="instrument-chip">
-                  {Object.keys(quizAnswers).length} / {currentQuizQuestions.length}
+                  {quizIndex + 1} / {currentQuizQuestions.length}
                 </span>
               </div>
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${currentQuizQuestions.length ? ((quizIndex + 1) / currentQuizQuestions.length) * 100 : 0}%` }}
+                />
+              </div>
 
-              <div className="space-y-12">
-                {currentQuizQuestions.map((q, qIdx) => (
+              {currentQuizQuestions[quizIndex] && (() => {
+                const q = currentQuizQuestions[quizIndex];
+                const qIdx = quizIndex;
+                const isFinal = currentSectionId === 'section-15';
+                const isSelected = quizAnswers[qIdx] !== undefined;
+                const showFeedback = !isFinal && isSelected;
+                return (
                   <div key={q.id} className="space-y-4">
                     <p className="font-semibold text-[15px] leading-snug text-zinc-100">{qIdx + 1}. {q.question}</p>
                     <div className="grid gap-2">
                       {q.options.map((opt, oIdx) => {
-                        const isSelected = quizAnswers[qIdx] === oIdx;
+                        const picked = quizAnswers[qIdx] === oIdx;
                         const isCorrect = oIdx === q.correctAnswerIndex;
-                        const showFeedback = quizAnswers[qIdx] !== undefined;
-                        
-                        let optionClass = "quiz-option";
-                        if (showFeedback && isSelected) {
-                          optionClass += isCorrect ? " is-correct" : " is-wrong";
+                        let optionClass = 'quiz-option';
+                        if (showFeedback && picked) {
+                          optionClass += isCorrect ? ' is-correct' : ' is-wrong';
                         } else if (showFeedback && isCorrect) {
-                          optionClass += " is-correct";
-                        } else if (isSelected) {
-                          optionClass += " is-selected";
+                          optionClass += ' is-correct';
+                        } else if (picked) {
+                          optionClass += ' is-selected';
                         }
-
                         return (
                           <button
                             key={oIdx}
+                            type="button"
                             onClick={() => handleAnswer(qIdx, oIdx)}
-                            disabled={quizAnswers[qIdx] !== undefined}
+                            disabled={isFinal ? false : isSelected}
                             className={optionClass}
                           >
                             <span className="font-medium">{opt}</span>
-                            {showFeedback && isSelected && (
-                              isCorrect ? <CheckCircle2 size={18} /> : <XCircle size={18} />
-                            )}
-                            {showFeedback && !isSelected && isCorrect && quizAnswers[qIdx] !== undefined && (
-                              <CheckCircle2 size={18} />
-                            )}
+                            {showFeedback && picked && (isCorrect ? <CheckCircle2 size={18} /> : <XCircle size={18} />)}
+                            {showFeedback && !picked && isCorrect && <CheckCircle2 size={18} />}
                           </button>
                         );
                       })}
                     </div>
-                    
-                    {quizAnswers[qIdx] !== undefined && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="p-4 surface-elevated text-sm text-zinc-400"
-                      >
+                    {showFeedback && (
+                      <div className="p-4 surface-elevated text-sm text-zinc-400">
                         <p className="font-semibold text-zinc-200 mb-1">Explanation</p>
                         {q.explanation}
-                      </motion.div>
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
 
-              <button 
-                onClick={handleViewResults}
-                disabled={Object.keys(quizAnswers).length < currentQuizQuestions.length}
-                className="w-full btn-primary"
-              >
-                View Results
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary flex-1"
+                  disabled={quizIndex <= 0}
+                  onClick={() => setQuizIndex((i) => Math.max(0, i - 1))}
+                >
+                  Previous
+                </button>
+                {quizIndex < currentQuizQuestions.length - 1 ? (
+                  <button
+                    type="button"
+                    className="btn-primary flex-1"
+                    disabled={quizAnswers[quizIndex] === undefined}
+                    onClick={() => setQuizIndex((i) => i + 1)}
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleViewResults}
+                    disabled={Object.keys(quizAnswers).length < currentQuizQuestions.length}
+                    className="btn-primary flex-1"
+                  >
+                    View Results
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -1196,9 +1358,9 @@ export default function App() {
                         if (!sim) return;
                         const moduleIndex = mwdCurriculum.findIndex((s) => s.id === sim.sectionId);
                         if (moduleIndex >= 3 && !hasPurchased) {
-                          setView('curriculum');
-                          setCurrentSectionId(null);
-                          setActiveSimId(null);
+                          setGateNotice(
+                            `${mwdCurriculum[moduleIndex]?.title ?? 'That module'} unlocks with full access.`
+                          );
                           return;
                         }
                         setView('curriculum');
@@ -1225,13 +1387,14 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         if (locked) {
-                          setView('curriculum');
-                          setCurrentSectionId(null);
+                          setGateNotice(`Unlock ${sim.title} with full access.`);
                           return;
                         }
+                        setGateNotice(null);
                         setActiveSimId(sim.id);
                       }}
                       className={`module-card sim-lab-card text-left ${locked ? 'is-locked' : ''}`}
+                      aria-label={`${locked ? 'Locked. ' : ''}${sim.title}`}
                     >
                       <img
                         src={getSimLabCover(sim.id)}
@@ -1462,21 +1625,21 @@ export default function App() {
       <nav className="app-nav">
         <div className="app-rail app-nav-row">
         <button 
-          onClick={() => { setView('curriculum'); setCurrentSectionId(null); }}
+          onClick={() => { setSearchTerm(''); setView('curriculum'); setCurrentSectionId(null); setActiveSimId(null); }}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'curriculum' || view === 'quiz' || view === 'results' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <BookOpen size={20} />
           <span className="app-nav-label">Learn</span>
         </button>
         <button 
-          onClick={() => { setView('simlab'); setCurrentSectionId(null); }}
+          onClick={() => { setSearchTerm(''); setView('simlab'); setCurrentSectionId(null); setActiveSimId(null); }}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'simlab' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <FlaskConical size={20} />
           <span className="app-nav-label">Sim Lab</span>
         </button>
         <button 
-          onClick={() => setView('profile')}
+          onClick={() => { setSearchTerm(''); setView('profile'); setActiveSimId(null); }}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'profile' || view === 'certification' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <UserIcon size={20} />

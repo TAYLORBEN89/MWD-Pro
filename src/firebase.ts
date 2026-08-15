@@ -27,6 +27,7 @@ import {
 // The browser API key is not committed — GitHub secret scanning flags it.
 // Set VITE_FIREBASE_API_KEY in .env / Vercel.
 import firebaseConfig from '../firebase-applet-config.json';
+import { isNative } from './lib/platform';
 
 const firebaseParams = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -55,6 +56,11 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const loginWithGoogle = async () => {
+  // WebView cannot host a reliable Google popup. Use a full redirect on native.
+  if (isNative()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (err: any) {
