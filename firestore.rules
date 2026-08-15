@@ -1,12 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
+
+    // Purchase / cert flags are written only by the Admin SDK (Stripe, stores, email).
+    function entitlementUnchanged() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+      return incoming.get('hasPurchased', false) == existing.get('hasPurchased', false)
+        && incoming.get('purchasedAt', null) == existing.get('purchasedAt', null)
+        && incoming.get('stripeSessionId', null) == existing.get('stripeSessionId', null)
+        && incoming.get('unlockReason', null) == existing.get('unlockReason', null)
+        && incoming.get('certified', false) == existing.get('certified', false)
+        && incoming.get('certifiedAt', null) == existing.get('certifiedAt', null)
+        && incoming.get('welcomeEmailSent', false) == existing.get('welcomeEmailSent', false)
+        && incoming.get('certificateEmailSent', false) == existing.get('certificateEmailSent', false)
+        && incoming.get('purchaseEmailSent', false) == existing.get('purchaseEmailSent', false)
+        && incoming.get('transactionId', null) == existing.get('transactionId', null)
+        && incoming.get('platform', null) == existing.get('platform', null);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.get('hasPurchased', false) == false
+        && request.resource.data.get('certified', false) == false;
+      allow update: if isOwner(userId) && entitlementUnchanged();
+      allow delete: if false;
+    }
+
     match /results/{docId} {
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.sectionId is string
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100;
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

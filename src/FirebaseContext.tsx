@@ -16,16 +16,13 @@ import {
   orderBy, 
   onSnapshot, 
   addDoc, 
-  serverTimestamp,
-  handleFirestoreError,
-  OperationType
+  serverTimestamp
 } from './firebase';
 import { AlertCircle } from 'lucide-react';
 import { requestWelcomeEmail } from './lib/emailClient';
 
 import { 
-  Badge,
-  UserProgress
+  Badge
 } from './types';
 
 interface QuizResult {
@@ -59,6 +56,16 @@ export function emailHasFullAccess(email?: string | null) {
   return !!email && FULL_ACCESS_EMAILS.has(email.trim().toLowerCase());
 }
 
+function resultMillis(completedAt: unknown): number {
+  if (!completedAt) return 0;
+  const stamp = completedAt as { toMillis?: () => number; toDate?: () => Date };
+  if (typeof stamp.toMillis === 'function') return stamp.toMillis();
+  if (typeof stamp.toDate === 'function') return stamp.toDate().getTime();
+  if (completedAt instanceof Date) return completedAt.getTime();
+  if (typeof completedAt === 'number') return completedAt;
+  return 0;
+}
+
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,11 +81,9 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Safety timeout to prevent infinite loading if Firebase fails
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn("Firebase initialization timed out. Proceeding anyway.");
-        setLoading(false);
-      }
-    }, 5000);
+      console.warn("Firebase initialization timed out. Proceeding anyway.");
+      setLoading(false);
+    }, 8000);
 
     // Complete Google redirect sign-in if we returned from the OAuth page
     void completeRedirectLogin().catch((err) => {
@@ -121,30 +126,27 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
 
         try {
-          const profileData: any = {
+          const existing = await getDoc(userRef);
+          const isNewProfile = !existing.exists();
+          const needsWelcome = isNewProfile || !existing.data()?.welcomeEmailSent;
+
+          const profileData: Record<string, unknown> = {
             uid: currentUser.uid,
             displayName: currentUser.displayName,
             photoURL: currentUser.photoURL,
-            createdAt: serverTimestamp()
           };
-          
+
           if (currentUser.email) {
             profileData.email = currentUser.email;
           }
-
-          if (emailHasFullAccess(currentUser.email)) {
-            profileData.hasPurchased = true;
-            profileData.unlockReason = 'owner-troubleshooting';
+          // Do not write hasPurchased from the client — Admin SDK owns entitlements.
+          if (isNewProfile) {
+            profileData.createdAt = serverTimestamp();
           }
-
-          // Detect first profile write for welcome email
-          const existing = await getDoc(userRef);
-          const isNewProfile = !existing.exists() || !existing.data()?.welcomeEmailSent;
 
           await setDoc(userRef, profileData, { merge: true });
 
-          if (isNewProfile && currentUser.email) {
-            // Non-blocking; server is idempotent via welcomeEmailSent
+          if (needsWelcome && currentUser.email) {
             void requestWelcomeEmail({
               uid: currentUser.uid,
               email: currentUser.email,
@@ -155,31 +157,52 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           console.error("Error syncing user profile:", error);
         }
 
-        // Listen for quiz results
-        const resultsQuery = query(
-          collection(db, 'results'),
-          where('uid', '==', currentUser.uid),
-          orderBy('completedAt', 'desc')
-        );
-
-        unsubscribeResults = onSnapshot(resultsQuery, (snapshot) => {
-          const fetchedResults = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+        const applyResults = (docs: { id: string; data: () => Record<string, unknown> }[], sortClientSide: boolean) => {
+          const fetchedResults = docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
           })) as QuizResult[];
+          if (sortClientSide) {
+            fetchedResults.sort((a, b) => resultMillis(b.completedAt) - resultMillis(a.completedAt));
+          }
           setResults(fetchedResults);
-        }, (error) => {
-          // Only report if we are still logged in
-          if (auth.currentUser) {
-            if (error.message?.includes('permissions')) {
+        };
+
+        const listenResults = (ordered: boolean) => {
+          const resultsQuery = ordered
+            ? query(
+                collection(db, 'results'),
+                where('uid', '==', currentUser.uid),
+                orderBy('completedAt', 'desc')
+              )
+            : query(
+                collection(db, 'results'),
+                where('uid', '==', currentUser.uid)
+              );
+
+          return onSnapshot(resultsQuery, (snapshot) => {
+            applyResults(snapshot.docs.map((item) => ({ id: item.id, data: () => item.data() as Record<string, unknown> })), !ordered);
+          }, (error) => {
+            if (!auth.currentUser) return;
+            const code = (error as { code?: string }).code || '';
+            const message = error.message || '';
+            if (ordered && (code === 'failed-precondition' || /index/i.test(message))) {
+              console.warn('Results composite index missing; falling back to unordered query.');
+              unsubscribeResults = listenResults(false);
+              return;
+            }
+            if (message.includes('permissions')) {
               setError("Permission denied. This often happens if your browser blocks storage in the preview. Try opening the app in a new tab.");
             }
-            handleFirestoreError(error, OperationType.LIST, 'results');
-          }
-        });
+            console.error('Results listener error:', error);
+          });
+        };
+
+        unsubscribeResults = listenResults(true);
       } else {
         setResults([]);
         setHasPurchased(false);
+        setBadges([]);
       }
       setLoading(false);
     }, (err) => {
@@ -270,7 +293,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'results');
+      console.error('Failed to save quiz result:', error);
     }
   };
 

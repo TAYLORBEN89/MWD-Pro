@@ -62,14 +62,14 @@ import { mwdCurriculum } from './data/mwdData';
 import { simLabCatalog, getSimLabCover } from './data/simLab';
 import { getModuleCover } from './data/moduleCovers';
 import { CurriculumSection, QuizQuestion } from './types';
-import { emailHasFullAccess, useFirebase } from './FirebaseContext';
+import { useFirebase } from './FirebaseContext';
 import { CinemaAdMode } from './components/CinemaAdMode';
 import { isNative } from './lib/platform';
 import { getApiUrl } from './lib/api';
 import { payments } from './lib/payments';
 import { httpClient } from './lib/httpClient';
-import { Capacitor } from '@capacitor/core';
 import { requestCertificateEmail } from './lib/emailClient';
+import { bearerHeaders } from './lib/authToken';
 
 function resultDate(completedAt: unknown): Date | null {
   if (!completedAt) return null;
@@ -89,6 +89,22 @@ function avatarSrc(photoURL?: string | null, displayName?: string | null, email?
   if (photoURL) return photoURL;
   const name = encodeURIComponent(displayName || email || 'Trainee');
   return `https://ui-avatars.com/api/?name=${name}&background=18181b&color=e6e8eb`;
+}
+
+function firstName(displayName?: string | null, email?: string | null) {
+  const fromName = displayName?.trim().split(/\s+/)[0];
+  if (fromName) return fromName;
+  const fromEmail = email?.split('@')[0];
+  return fromEmail || null;
+}
+
+function timeHello() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Welcome back';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 22) return 'Good evening';
+  return 'Welcome back';
 }
 import { LessonReader } from './components/LessonReader';
 
@@ -220,7 +236,6 @@ export default function App() {
         }
       })
       .then(data => {
-        console.log("Stripe Config Received:", data);
         setApiStatus('connected');
         
         if (data.config) {
@@ -230,7 +245,6 @@ export default function App() {
         // Ensure the key is valid before saving it
         if (data.stripePublishableKey && data.stripePublishableKey.length > 5) {
           setStripePubKey(data.stripePublishableKey);
-          console.log("Stripe Key set to:", data.stripePublishableKey);
         } else {
           console.error("The server returned an empty or invalid Stripe key.");
           // Native apps use Google Play / App Store — Stripe keys are only required on web
@@ -262,9 +276,7 @@ export default function App() {
   const showDiagnostics = Boolean(import.meta.env.DEV) || import.meta.env.VITE_SHOW_DIAGNOSTICS === 'true';
 
   const isStripeConfigured = useMemo(() => {
-    const hasKey = typeof stripePubKey === 'string' && stripePubKey.length > 5 && !stripePubKey.includes('TODO');
-    console.log("Stripe Config Check:", { stripePubKey, hasKey });
-    return hasKey;
+    return typeof stripePubKey === 'string' && stripePubKey.length > 5 && !stripePubKey.includes('TODO');
   }, [stripePubKey]);
 
   // Web needs Stripe; Android/iOS use Play Billing / App Store (cordova-plugin-purchase)
@@ -272,21 +284,15 @@ export default function App() {
 
   // Handle payment success from URL (Stripe Checkout return)
   useEffect(() => {
-    console.log("Stripe Configuration Status:", {
-      keyFound: !!stripePubKey,
-      keyLength: stripePubKey?.length || 0,
-      isConfigured: isStripeConfigured,
-      canPurchase,
-      isNative: isNative(),
-    });
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
       const sessionId = params.get('session_id');
       // Fallback unlock if webhook is slow/missing: confirm session with API
       if (sessionId && user?.uid) {
-        httpClient(getApiUrl('/api/confirm-checkout-session'), {
+        void bearerHeaders().then((auth) =>
+          httpClient(getApiUrl('/api/confirm-checkout-session'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...auth },
           body: JSON.stringify({ sessionId, userId: user.uid }),
         })
           .then(async (res) => {
@@ -297,7 +303,8 @@ export default function App() {
               console.log('Checkout confirmed; hasPurchased should update via Firestore');
             }
           })
-          .catch((err) => console.warn('confirm-checkout-session error', err));
+          .catch((err) => console.warn('confirm-checkout-session error', err))
+        );
       }
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -353,8 +360,12 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSimId, setActiveSimId] = useState<string | null>(null);
   const ActiveSim = activeSimId ? simLabRenderers[activeSimId] : null;
-  const [certEmailStatus, setCertEmailStatus] = useState<'idle' | 'sent' | 'fail'>('idle');
+  const [certEmailStatus, setCertEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
   const [showCinemaAd, setShowCinemaAd] = useState(false);
+
+  useEffect(() => {
+    setCertEmailStatus('idle');
+  }, [user?.uid]);
 
   const profileLog = useMemo(() => {
     return mwdCurriculum.map((section, index) => {
@@ -372,29 +383,26 @@ export default function App() {
   }, [results, hasPurchased]);
 
   const masteredCount = profileLog.filter((row) => (row.best ?? -1) >= 80).length;
-  const bestAll = results.length ? Math.max(...results.map((r) => r.score)) : null;
-  let masteredStreak = 0;
-  for (const row of profileLog) {
-    if ((row.best ?? -1) >= 80) masteredStreak += 1;
-    else break;
-  }
-  const nextModule = profileLog.find((row) => (row.best ?? -1) < 80) ?? null;
-  const certPass = results.find((r) => r.sectionId === 'section-15' && r.score >= 80) ?? null;
-  const certIssued = certPass ? resultDate(certPass.completedAt) : null;
 
-  const claimCertificate = () => {
+  const certIssuedAt = useMemo(() => {
+    const passing = results
+      .filter((r) => r.sectionId === 'section-15' && r.score >= 80)
+      .map((r) => resultDate(r.completedAt))
+      .filter((d): d is Date => !!d);
+    if (!passing.length) return null;
+    return new Date(Math.min(...passing.map((d) => d.getTime())));
+  }, [results]);
+
+  const claimCertificate = async () => {
     setView('certification');
-    if (!user?.email || certEmailStatus !== 'idle') return;
-    void requestCertificateEmail({
+    if (!user?.email || certEmailStatus === 'sending' || certEmailStatus === 'sent') return;
+    setCertEmailStatus('sending');
+    const ok = await requestCertificateEmail({
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-    }).then((ok) => setCertEmailStatus(ok ? 'sent' : 'fail'));
-  };
-
-  const openModule = (sectionId: string, locked: boolean) => {
-    setView('curriculum');
-    setCurrentSectionId(locked ? null : sectionId);
+    });
+    setCertEmailStatus(ok ? 'sent' : 'failed');
   };
 
   const overallProgress = useMemo(() => {
@@ -474,15 +482,23 @@ export default function App() {
   };
 
   const handleViewResults = async () => {
+    if (!currentQuizQuestions.length) {
+      setView('results');
+      return;
+    }
     const score = Math.round((calculateScore() / currentQuizQuestions.length) * 100);
     if (user && currentSection) {
-      await saveQuizResult(
-        currentSection.id,
-        currentSection.title,
-        score,
-        calculateScore(),
-        currentQuizQuestions.length
-      );
+      try {
+        await saveQuizResult(
+          currentSection.id,
+          currentSection.title,
+          score,
+          calculateScore(),
+          currentQuizQuestions.length
+        );
+      } catch (err) {
+        console.error('Quiz score could not be saved:', err);
+      }
     }
     setView('results');
   };
@@ -606,6 +622,8 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
+              {currentSection ? (
+                <>
               <div className="flex items-center gap-2 text-zinc-400 mb-2">
                 <BookOpen size={16} />
                 <span className="label-caps">Curriculum</span>
@@ -624,6 +642,8 @@ export default function App() {
                   />
                 </div>
               </div>
+              </>
+              ) : null}
 
               {currentSection ? (
                 <motion.div 
@@ -777,9 +797,42 @@ export default function App() {
                 </motion.div>
               ) : (
                 <div className="space-y-6">
-                  <div className="space-y-1">
-                    <h2 className="text-2xl title-display">Training Modules</h2>
-                    <p className="body-muted">3 free modules to start. Complete the path for MWD Professional certification.</p>
+                  <div className="space-y-2">
+                    <p className="label-caps text-[#8a9099]">{timeHello()}</p>
+                    <h2 className="text-2xl title-display text-[#e6e8eb]">
+                      Hello{firstName(user?.displayName, user?.email) ? `, ${firstName(user?.displayName, user?.email)}` : ''}
+                    </h2>
+                    <p className="text-[13px] leading-relaxed text-[#8a9099]">
+                      {(() => {
+                        const next = profileLog.find((row) => (row.best ?? -1) < 80);
+                        if (!user) {
+                          return 'Three modules are open. Open a card, read the lesson, then take the quiz. Sign in from Profile if you want scores to stick.';
+                        }
+                        if (!next) {
+                          return 'Tour is complete. Reopen any card to review, or run a Sim Lab.';
+                        }
+                        if (next.locked) {
+                          return 'You finished the free lane. Unlock modules 4–15 below, or reopen 1–3 to review.';
+                        }
+                        return `Continue Module ${next.index + 1} — ${next.section.title}. Read it, use the lab if there is one, then pass the quiz at 80%.`;
+                      })()}
+                    </p>
+                  </div>
+
+                  <div className="surface-card p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="label-meta">Your Progress</span>
+                      <span className="hmi-readout text-xs text-[#3ecf8e]">
+                        {masteredCount} / {mwdCurriculum.length}
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${overallProgress}%` }}
+                        className="progress-fill"
+                      />
+                    </div>
                   </div>
 
                   <div className="relative">
@@ -804,7 +857,11 @@ export default function App() {
                           key={section.id}
                           type="button"
                           onClick={() => {
-                            if (isLocked) return;
+                            if (isLocked) {
+                              if (!user) login();
+                              else handlePurchase();
+                              return;
+                            }
                             setCurrentSectionId(section.id);
                           }}
                           className={`group module-photo-card ${isCompleted ? 'is-complete' : ''} ${isLocked ? 'is-locked' : ''}`}
@@ -1010,13 +1067,18 @@ export default function App() {
               </div>
 
               <div className="grid gap-3">
-                {currentSectionId === 'section-15' && calculateScore() / currentQuizQuestions.length >= 0.8 && (
+                {currentSectionId === 'section-15' && currentQuizQuestions.length > 0 && calculateScore() / currentQuizQuestions.length >= 0.8 && (
                   <button 
-                    onClick={claimCertificate}
+                    onClick={() => { void claimCertificate(); }}
                     className="w-full btn-primary"
                   >
                     <Trophy size={20} /> Claim Certification
                   </button>
+                )}
+                {!user && (
+                  <p className="text-xs text-zinc-500">
+                    Sign in from Profile if you want this score saved.
+                  </p>
                 )}
                 {currentSectionId && ['section-1','section-2','section-3'].includes(currentSectionId) && !hasPurchased && calculateScore() / currentQuizQuestions.length >= 0.6 && (
                   <div className="paywall-card space-y-3 text-left">
@@ -1072,7 +1134,7 @@ export default function App() {
 
                 <div className="space-y-1">
                   <p className="text-zinc-400 text-xs italic">This is to certify that</p>
-                  <p className="text-xl title-display border-b border-white/10 pb-2 inline-block min-w-[200px] text-[#e6e8eb]">
+                  <p className="text-xl title-display border-b border-white/10 pb-2 inline-block min-w-[200px]">
                     {user?.displayName || 'Trainee'}
                   </p>
                 </div>
@@ -1084,20 +1146,19 @@ export default function App() {
                 <div className="flex justify-between items-end pt-8">
                   <div className="text-left space-y-1">
                     <p className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">Date Issued</p>
-                    <p className="hmi-readout text-xs text-[#e6e8eb]">{formatDay(certIssued)}</p>
+                    <p className="text-xs font-bold">{formatDay(certIssuedAt ?? new Date())}</p>
                   </div>
-                  <div className="w-14 h-14 bg-[#3ecf8e] rounded-xl flex items-center justify-center text-zinc-950">
+                  <div className="w-14 h-14 bg-emerald-500/100 rounded-xl flex items-center justify-center text-zinc-950 rotate-6">
                     <Award size={32} />
                   </div>
                 </div>
               </div>
 
-              <p className="text-center text-xs text-[#8a9099]">
-                {certEmailStatus === 'sent'
-                  ? 'Certificate mail sent from info@compessential.com'
-                  : certEmailStatus === 'fail'
-                    ? 'Certificate mail did not send. You can still screenshot this page.'
-                    : 'Open this page to keep a record of the certificate.'}
+              <p className="text-center text-xs text-zinc-500">
+                {certEmailStatus === 'sending' && 'Sending your certificate email…'}
+                {certEmailStatus === 'sent' && `Confirmation sent to ${user?.email} from info@compessential.com`}
+                {certEmailStatus === 'failed' && 'Could not send the certificate email. Open your certificate from Profile to try again.'}
+                {certEmailStatus === 'idle' && 'Your certificate is ready on this device.'}
               </p>
               <button 
                 onClick={() => setView('profile')}
@@ -1242,192 +1303,159 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="space-y-8"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-zinc-400">
-                  <UserIcon size={16} />
-                  <span className="label-caps">Tour</span>
-                </div>
-                {user && (
-                  <span className={`hmi-lamp ${hasPurchased ? 'text-[#3ecf8e]' : 'text-[#8a9099]'}`}>
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: hasPurchased ? '#3ecf8e' : '#8a9099' }}
-                    />
-                    {hasPurchased ? 'Full access' : 'Free lane'}
-                  </span>
-                )}
+              <div className="flex items-center gap-2 text-zinc-400 mb-2">
+                <UserIcon size={16} />
+                <span className="label-caps">My Profile</span>
               </div>
 
               {user ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={avatarSrc(user.photoURL, user.displayName, user.email)}
-                      alt={user.displayName || 'User'}
-                      className="h-14 w-14 object-cover"
+                <div className="space-y-8">
+                                    <div className="grid grid-cols-3 gap-3">
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display text-emerald-400">{masteredCount}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Modules mastered</p>
+                    </div>
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display">{results.length}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Quizzes taken</p>
+                    </div>
+                    <div className="surface-card p-3 text-center">
+                      <p className="text-xl title-display">{badges.length}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Badges</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-5 surface-card">
+                    <img 
+                      src={avatarSrc(user.photoURL, user.displayName, user.email)} 
+                      alt={user.displayName || 'User'} 
+                      className="w-16 h-16 rounded-2xl shadow-lg object-cover bg-zinc-900"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const el = e.currentTarget;
+                        if (el.dataset.fallback === '1') return;
+                        el.dataset.fallback = '1';
+                        el.src = avatarSrc(null, user.displayName, user.email);
+                      }}
                     />
-                    <div className="min-w-0">
-                      <h3 className="text-xl title-display text-[#e6e8eb]">{user.displayName || 'Trainee'}</h3>
-                      <p className="truncate text-[12px] text-[#8a9099]">{user.email}</p>
+                    <div>
+                      <h3 className="text-xl title-display">{user.displayName || firstName(null, user.email) || 'Trainee'}</h3>
+                      <p className="body-muted">{user.email}</p>
+                      <p className="text-[11px] text-zinc-500 mt-1">
+                        {hasPurchased ? 'Full access unlocked' : 'Free modules 1–3'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="h-px overflow-hidden bg-[#1d2026]">
-                    <div className="h-px bg-[#3ecf8e]" style={{ width: `${overallProgress}%` }} />
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-y border-[#1d2026] py-2">
-                    {[
-                      { l: 'Mastered', v: `${masteredCount}`, u: `/ ${mwdCurriculum.length}` },
-                      { l: 'Best', v: bestAll === null ? '—' : `${bestAll}`, u: bestAll === null ? '' : '%' },
-                      { l: 'Streak', v: `${masteredStreak}`, u: '' },
-                      { l: 'Badges', v: `${badges.length}`, u: '' },
-                    ].map((row) => (
-                      <div key={row.l}>
-                        <p className="label-caps">{row.l}</p>
-                        <p className="hmi-readout text-[18px] leading-none text-[#e6e8eb]">
-                          {row.v}
-                          <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
+                  {/* Badges Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-zinc-400">
+                      <Award size={16} />
+                      <h4 className="label-caps">Earned Badges</h4>
+                    </div>
+                    {badges && badges.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {badges.map((badge) => (
+                          <div key={badge.id} className="p-4 surface-card text-center space-y-2 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/100 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto">
+                              <Award size={24} />
+                            </div>
+                            <h5 className="text-[10px] font-bold font-display uppercase tracking-tight line-clamp-1">{badge.title}</h5>
+                            <p className="text-[8px] text-zinc-400 leading-tight line-clamp-2">{badge.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center bg-elevated rounded-3xl border border-dashed border-zinc-300">
+                        <p className="text-sm text-zinc-400 font-medium whitespace-pre-line">
+                          {`You haven't earned any badges yet.\nPass a module quiz with 80%+ to earn one!`}
                         </p>
                       </div>
-                    ))}
-                  </div>
-
-                  {nextModule && (
-                    <button
-                      type="button"
-                      onClick={() => openModule(nextModule.section.id, nextModule.locked)}
-                      className="flex w-full items-center gap-3 border border-[#1d2026] border-l-2 border-l-[#3aa8b8] py-2.5 pl-3 pr-2 text-left"
-                    >
-                      <span className="hmi-readout w-6 text-[11px] text-[#5c636e]">
-                        {String(nextModule.index + 1).padStart(2, '0')}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="label-caps text-[#3aa8b8]">Continue</span>
-                        <span className="mt-0.5 block truncate text-[13px] font-semibold text-[#e6e8eb]">
-                          {nextModule.section.title}
-                        </span>
-                      </span>
-                      <ChevronRight size={16} className="shrink-0 text-[#5c636e]" />
-                    </button>
-                  )}
-
-                  <div className="space-y-2">
-                    <p className="label-caps">Certificate</p>
-                    {certPass ? (
-                      <button
-                        type="button"
-                        onClick={claimCertificate}
-                        className="flex w-full items-center gap-3 border border-[#1d2026] py-2.5 pl-3 pr-2 text-left"
-                      >
-                        <Trophy size={16} className="shrink-0 text-[#3ecf8e]" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[13px] font-semibold text-[#e6e8eb]">MWD Professional</span>
-                          <span className="hmi-readout text-[11px] text-[#8a9099]">Issued {formatDay(certIssued)}</span>
-                        </span>
-                        <ChevronRight size={16} className="shrink-0 text-[#5c636e]" />
-                      </button>
-                    ) : (
-                      <p className="text-[12px] leading-relaxed text-[#8a9099]">
-                        Pass the Final Assessment at 80% to issue the certificate.
-                      </p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <p className="label-caps">Badge rack · {badges.length} / {mwdCurriculum.length}</p>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {profileLog.map((row) => {
-                        const earned = badges.some((b) => b.id === `badge-${row.section.id}`);
-                        return (
-                          <button
-                            key={row.section.id}
-                            type="button"
-                            onClick={() => openModule(row.section.id, row.locked)}
-                            className="flex flex-col items-center gap-1 border border-[#1d2026] py-2"
-                            title={row.section.title}
-                          >
-                            <span className={`hmi-readout text-[11px] ${earned ? 'text-[#3ecf8e]' : 'text-[#5c636e]'}`}>
-                              {String(row.index + 1).padStart(2, '0')}
-                            </span>
-                            {earned ? (
-                              <Award size={12} className="text-[#3ecf8e]" />
-                            ) : (
-                              <span className="h-3 w-3 border border-[#2a2d33]" />
-                            )}
-                          </button>
-                        );
-                      })}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-zinc-400">
+                      <History size={16} />
+                      <h4 className="label-caps">Quiz History</h4>
                     </div>
+
+                    {results.length > 0 ? (
+                      <div className="space-y-3">
+                        {results.map((result) => (
+                          <div key={result.id} className="p-4 surface-card flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-sm">{result.sectionTitle}</p>
+                              <p className="text-[10px] text-zinc-400 font-medium">
+                                {formatDay(resultDate(result.completedAt)) === '—' && result.completedAt
+                                  ? 'Just now'
+                                  : formatDay(resultDate(result.completedAt))}
+                              </p>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${result.score >= 80 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-elevated text-zinc-600'}`}>
+                              {result.score}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center bg-elevated rounded-3xl border border-dashed border-zinc-300">
+                        <p className="text-sm text-zinc-400 font-medium">No quiz results yet.</p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="space-y-1">
-                    <p className="label-caps">Well log</p>
-                    {profileLog.map((row) => {
-                      const send = (row.best ?? -1) >= 80;
-                      const rail = row.locked
-                        ? '#2a2d33'
-                        : send
-                          ? '#3ecf8e'
-                          : row.attempts
-                            ? '#d4a017'
-                            : '#2a2d33';
-                      return (
-                        <button
-                          key={row.section.id}
-                          type="button"
-                          onClick={() => openModule(row.section.id, row.locked)}
-                          className="flex w-full items-center gap-3 border-b border-[#1d2026] py-2 pl-2 text-left"
-                          style={{ borderLeft: `2px solid ${rail}` }}
-                        >
-                          <span className="hmi-readout w-6 text-[11px] text-[#5c636e]">
-                            {String(row.index + 1).padStart(2, '0')}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className={`block truncate text-[13px] ${row.locked ? 'text-[#8a9099]' : 'text-[#e6e8eb]'}`}>
-                              {row.section.title}
-                            </span>
-                            <span className="hmi-readout text-[10px] text-[#5c636e]">
-                              {row.locked
-                                ? 'Locked'
-                                : row.attempts
-                                  ? `${row.attempts} run${row.attempts === 1 ? '' : 's'} · ${formatDay(resultDate(row.last?.completedAt))}`
-                                  : 'Not started'}
-                            </span>
-                          </span>
-                          <span
-                            className={`hmi-readout shrink-0 text-[13px] ${
-                              send ? 'text-[#3ecf8e]' : row.attempts ? 'text-[#d4a017]' : 'text-[#5c636e]'
-                            }`}
-                          >
-                            {row.locked ? <Lock size={12} /> : row.best === null ? '—' : row.best}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-zinc-400">
+                      <Award size={16} />
+                      <h4 className="label-caps">Certifications</h4>
+                    </div>
+                    {results.some(r => r.sectionId === 'section-15' && r.score >= 80) ? (
+                      <button 
+                        onClick={() => { void claimCertificate(); }}
+                        className="w-full p-4 surface-card flex items-center gap-4 border border-emerald-500/25 bg-emerald-500/10"
+                      >
+                        <div className="w-10 h-10 bg-emerald-500/100 rounded-xl flex items-center justify-center text-white shadow-lg">
+                          <Trophy size={20} />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-emerald-400 font-display">MWD Professional</p>
+                          <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                            {certIssuedAt ? `Issued ${formatDay(certIssuedAt)}` : 'Verified Certification'}
+                          </p>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="p-8 text-center bg-elevated rounded-3xl border border-dashed border-zinc-300">
+                        <p className="text-sm text-zinc-400 font-medium">Complete the Final Assessment with 80%+ to earn your certificate.</p>
+                      </div>
+                    )}
                   </div>
 
-                  {emailHasFullAccess(user.email) && (
-                    <button
-                      type="button"
-                      onClick={() => setShowCinemaAd(true)}
-                      className="hmi-key w-full"
-                    >
-                      <PlayCircle size={14} /> Studio
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowCinemaAd(true)}
+                    className="btn-primary w-full"
+                  >
+                    <PlayCircle size={18} /> Watch trailer
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-4 py-8">
-                  <p className="text-[13px] text-[#e6e8eb]">Sign in to track the tour.</p>
-                  <p className="text-[12px] leading-relaxed text-[#8a9099]">
-                    Quiz scores, badges, and the certificate stay on this well.
-                  </p>
-                  <button type="button" onClick={() => login()} className="hmi-key is-on" style={{ borderColor: '#3ecf8e99', color: '#3ecf8e' }}>
-                    <LogIn size={14} /> Sign in with Google
+                <div className="text-center space-y-6 py-12">
+                  <div className="w-20 h-20 bg-elevated rounded-3xl flex items-center justify-center text-zinc-300 mx-auto">
+                    <UserIcon size={40} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl title-display">Sign in to track progress</h3>
+                    <p className="body-muted max-w-[200px] mx-auto">Save your quiz results and earn your MWD Professional certification.</p>
+                  </div>
+                  <button 
+                    onClick={() => login()}
+                    className="btn-primary flex items-center justify-center gap-2 mx-auto"
+                  >
+                    <LogIn size={18} /> Sign in with Google
                   </button>
                 </div>
               )}

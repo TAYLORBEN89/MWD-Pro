@@ -1,16 +1,23 @@
 import { getApiUrl } from './api';
 import { httpClient } from './httpClient';
+import { bearerHeaders } from './authToken';
 
 async function postEmail(path: string, body: Record<string, unknown>): Promise<boolean> {
   try {
+    const auth = await bearerHeaders();
     const res = await httpClient(getApiUrl(path), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...auth },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.warn(`Email ${path} failed:`, res.status, text.slice(0, 120));
+      return false;
+    }
+    const data = await res.json().catch(() => ({} as { ok?: boolean }));
+    if (data && data.ok === false) {
+      console.warn(`Email ${path} reported failure`);
       return false;
     }
     return true;

@@ -122,6 +122,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json({
   verify: (req: any, res, buf) => {
     if (req.url.startsWith('/api/webhook')) {
@@ -129,6 +130,18 @@ app.use(express.json({
     }
   }
 }));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests." }
+});
+app.use("/api/", (req, res, next) => {
+  if (req.originalUrl.includes("/webhook")) return next();
+  return limiter(req, res, next);
+});
 
 // 1. LOGGING & API HEADER FORCING
 app.use((req, res, next) => {
@@ -211,33 +224,15 @@ const handleApiRoute = (path: string, handler: express.RequestHandler, method: '
 
 handleApiRoute("/config", (req, res) => {
   const pubKey = getEnv("VITE_STRIPE_PUBLISHABLE_KEY") || getEnv("STRIPE_PUBLISHABLE_KEY") || "";
-  const secKey = getEnv("STRIPE_SECRET_KEY") || getEnv("VITE_STRIPE_SECRET_KEY") || "";
   const appUrl = getEnv("APP_URL") || getEnv("VITE_APP_URL") || "";
-  
-  // Get all keys that look like Stripe keys to see if there's a typo in the secret name
-  const allEnvKeys = Object.keys(process.env);
-  const stripeKeys = allEnvKeys.filter(k => k.toLocaleUpperCase().includes('STRIPE'));
-  const urlKeys = allEnvKeys.filter(k => k.toLocaleUpperCase().includes('URL'));
-  
-  console.log("API: Config Request Diagnostics", {
-    hasPubKey: !!pubKey,
-    hasSecKey: !!secKey,
-    hasAppUrl: !!appUrl,
-    stripeKeysFound: stripeKeys,
-    urlKeysFound: urlKeys,
-    rawAppUrlValue: process.env.VITE_APP_URL // Help debug quote issues
-  });
 
   res.setHeader('Content-Type', 'application/json');
-  res.json({ 
+  res.json({
     stripePublishableKey: pubKey,
     serverTime: new Date().toISOString(),
     config: {
       hasPubKey: !!pubKey,
-      hasSecKey: !!secKey,
       hasAppUrl: !!appUrl,
-      envKeysDetected: [...stripeKeys, ...urlKeys],
-      serverMode: process.env.NODE_ENV || 'development'
     }
   });
 });
@@ -256,12 +251,35 @@ handleApiRoute("/ping", (req, res) => {
 handleApiRoute("/health", (req, res) => {
   res.json({ status: "ok", env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
 });
+async function requireAuthedUid(req: express.Request, res: express.Response): Promise<string | null> {
+  if (!admin.apps.length) {
+    res.status(503).json({ error: "Auth service unavailable" });
+    return null;
+  }
+  const header = String(req.headers.authorization || "");
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token) {
+    res.status(401).json({ error: "Sign in required" });
+    return null;
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    return decoded.uid;
+  } catch (err: any) {
+    console.warn("ID token verification failed:", err?.message || err);
+    res.status(401).json({ error: "Invalid or expired session. Sign in again." });
+    return null;
+  }
+}
+
 // Email: welcome (idempotent via Firestore flag)
 handleApiRoute("/email/welcome", async (req, res) => {
   try {
+    const authedUid = await requireAuthedUid(req, res);
+    if (!authedUid) return;
     const { uid, email, displayName } = req.body || {};
     const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
-    if (!uid || typeof uid !== "string" || uid.length > 128) {
+    if (!uid || typeof uid !== "string" || uid !== authedUid || uid.length > 128) {
       return res.status(400).json({ error: "Invalid or missing uid" });
     }
     if (!email || !emailRegex.test(email) || email.length > 255) {
@@ -287,22 +305,27 @@ handleApiRoute("/email/welcome", async (req, res) => {
       name: displayName || snap.data()?.displayName || null,
     });
 
-    if (result.ok) {
-      await userRef.set(
-        {
-          welcomeEmailSent: true,
-          welcomeEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
-          email,
-        },
-        { merge: true }
-      );
+    if (!result.ok) {
+      return res.status(502).json({
+        ok: false,
+        skipped: result.skipped || false,
+        error: result.error || "Welcome email failed",
+      });
     }
 
+    await userRef.set(
+      {
+        welcomeEmailSent: true,
+        welcomeEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        email,
+      },
+      { merge: true }
+    );
+
     res.json({
-      ok: result.ok,
-      skipped: result.skipped || false,
+      ok: true,
+      skipped: false,
       id: result.id,
-      error: result.error,
     });
   } catch (err: any) {
     console.error("Welcome email route error:", err);
@@ -321,9 +344,11 @@ handleApiRoute("/email/status", (_req, res) => {
 // Certificate email (idempotent)
 handleApiRoute("/email/certificate", async (req, res) => {
   try {
+    const authedUid = await requireAuthedUid(req, res);
+    if (!authedUid) return;
     const { uid, email, displayName } = req.body || {};
     const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
-    if (!uid || typeof uid !== "string" || uid.length > 128) {
+    if (!uid || typeof uid !== "string" || uid !== authedUid || uid.length > 128) {
       return res.status(400).json({ error: "Invalid or missing uid" });
     }
     if (!email || !emailRegex.test(email) || email.length > 255) {
@@ -337,6 +362,15 @@ handleApiRoute("/email/certificate", async (req, res) => {
     }
 
     const db = getFirestore();
+    const resultsSnap = await db.collection("results").where("uid", "==", uid).get();
+    const earned = resultsSnap.docs.some((d) => {
+      const data = d.data();
+      return data.sectionId === "section-15" && Number(data.score) >= 80;
+    });
+    if (!earned) {
+      return res.status(403).json({ error: "Certificate not earned yet" });
+    }
+
     const userRef = db.collection("users").doc(uid);
     const snap = await userRef.get();
     if (snap.exists && snap.data()?.certificateEmailSent) {
@@ -348,24 +382,29 @@ handleApiRoute("/email/certificate", async (req, res) => {
       name: displayName || snap.data()?.displayName || null,
     });
 
-    if (result.ok) {
-      await userRef.set(
-        {
-          certificateEmailSent: true,
-          certificateEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
-          certified: true,
-          certifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-          email,
-        },
-        { merge: true }
-      );
+    if (!result.ok) {
+      return res.status(502).json({
+        ok: false,
+        skipped: result.skipped || false,
+        error: result.error || "Certificate email failed",
+      });
     }
 
+    await userRef.set(
+      {
+        certificateEmailSent: true,
+        certificateEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        certified: true,
+        certifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+        email,
+      },
+      { merge: true }
+    );
+
     res.json({
-      ok: result.ok,
-      skipped: result.skipped || false,
+      ok: true,
+      skipped: false,
       id: result.id,
-      error: result.error,
     });
   } catch (err: any) {
     console.error("Certificate email route error:", err);
@@ -420,16 +459,6 @@ const getOrCreateMwdProduct = async () => {
   cachedPriceId = product.default_price as string;
   return cachedPriceId;
 };
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests." }
-});
-app.use("/api/", limiter);
 
 // Webhook endpoint
 handleApiRoute("/webhook", async (req: any, res) => {
@@ -490,10 +519,12 @@ handleApiRoute("/webhook", async (req: any, res) => {
 // Stripe Checkout
 handleApiRoute("/create-checkout-session", async (req, res) => {
   try {
+    const authedUid = await requireAuthedUid(req, res);
+    if (!authedUid) return;
     const { userId, userEmail } = req.body;
     
     // Robust Input Validation
-    if (!userId || typeof userId !== 'string' || userId.length > 128) {
+    if (!userId || typeof userId !== 'string' || userId !== authedUid || userId.length > 128) {
       return res.status(400).json({ error: "Invalid or missing userId" });
     }
     
@@ -530,8 +561,10 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
 // Client-side fallback when webhook is delayed/missing: confirm paid Checkout session and unlock user
 handleApiRoute("/confirm-checkout-session", async (req, res) => {
   try {
+    const authedUid = await requireAuthedUid(req, res);
+    if (!authedUid) return;
     const { sessionId, userId } = req.body || {};
-    if (!sessionId || typeof sessionId !== "string" || !userId || typeof userId !== "string") {
+    if (!sessionId || typeof sessionId !== "string" || !userId || typeof userId !== "string" || userId !== authedUid) {
       return res.status(400).json({ error: "sessionId and userId are required" });
     }
 
@@ -543,7 +576,7 @@ handleApiRoute("/confirm-checkout-session", async (req, res) => {
     }
 
     const metaUserId = session.metadata?.userId;
-    if (metaUserId && metaUserId !== userId) {
+    if (!metaUserId || metaUserId !== userId) {
       return res.status(403).json({ error: "Session does not belong to this user" });
     }
 
@@ -586,7 +619,12 @@ handleApiRoute("/confirm-checkout-session", async (req, res) => {
 // Verify Native Purchase (Google Play / Apple App Store)
 handleApiRoute("/verify-native-purchase", async (req, res) => {
   try {
+    const authedUid = await requireAuthedUid(req, res);
+    if (!authedUid) return;
     const { platform, transactionId, productId, purchaseToken, receipt, userId } = req.body;
+    if (!userId || userId !== authedUid) {
+      return res.status(403).json({ error: "Purchase does not belong to this user" });
+    }
     console.log(`Verifying ${platform} purchase:`, { transactionId, productId });
 
     let isValid = false;
@@ -632,9 +670,8 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
         isValid = false;
       }
     } else if (platform === 'ios') {
-      // Apple Verification (Simplified)
-      console.warn("Apple verification is mock-only in this version.");
-      isValid = !!transactionId;
+      console.warn("Apple App Store verification is not configured. Denying iOS purchase.");
+      isValid = false;
     }
 
     if (isValid && userId) {

@@ -1,7 +1,7 @@
-import { isNative, isAndroid, isIOS } from './platform';
+import { isNative, isAndroid } from './platform';
 import { getApiUrl } from './api';
-import { Browser } from '@capacitor/browser';
 import { httpClient } from './httpClient';
+import { bearerHeaders } from './authToken';
 
 // Product IDs for Native Stores
 export const PRODUCT_ID_ANDROID = 'mwd_pro_full_course';
@@ -92,9 +92,10 @@ class PaymentService {
   private async verifyNativePurchase(transaction: any): Promise<boolean> {
     try {
       console.log("Sending verification request to server...");
+      const auth = await bearerHeaders();
       const response = await httpClient(getApiUrl('/api/verify-native-purchase'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify({
           platform: isAndroid() ? 'android' : 'ios',
           transactionId: transaction.transactionId,
@@ -150,9 +151,10 @@ class PaymentService {
         }
       } else {
         // Stripe Web Flow
+        const auth = await bearerHeaders();
         const response = await httpClient(getApiUrl('/api/create-checkout-session'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...auth },
           body: JSON.stringify({ userId, userEmail }),
         });
 
