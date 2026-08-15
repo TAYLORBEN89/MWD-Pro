@@ -227,7 +227,7 @@
   .module-photo-card {
     @apply relative w-full text-left overflow-hidden transition-all active:scale-[0.99];
     border: 1px solid var(--border);
-    border-radius: 0;
+    border-radius: var(--radius-lg);
     /* ~2x taller than a standard list row */
     aspect-ratio: 4 / 3;
     min-height: 11.5rem;
@@ -303,14 +303,14 @@
   }
 
   .module-photo-lock {
-    @apply absolute top-3 left-3 z-10 w-8 h-8 flex items-center justify-center;
+    @apply absolute top-3 left-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #a1a1aa;
   }
 
   .module-photo-done {
-    @apply absolute top-3 left-3 z-10 w-8 h-8 flex items-center justify-center;
+    @apply absolute top-3 left-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg;
     background: rgba(16, 185, 129, 0.95);
     color: #052e1c;
   }
