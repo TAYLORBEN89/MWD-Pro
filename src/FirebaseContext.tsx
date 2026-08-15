@@ -81,9 +81,9 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Safety timeout to prevent infinite loading if Firebase fails
     const timeoutId = setTimeout(() => {
-      console.warn("Firebase initialization timed out. Proceeding anyway.");
-      setLoading(false);
-    }, 8000);
+      console.warn("Firebase initialization timed out.");
+      setAuthError("Still connecting. Check your network if this screen stays up.");
+    }, 10000);
 
     // Complete Google redirect sign-in if we returned from the OAuth page
     void completeRedirectLogin().catch((err) => {

@@ -204,14 +204,11 @@ export default function App() {
     // Initialize Native Store if applicable
     if (isNative() && user?.uid) {
       payments.initializeNativeStore(user.uid, () => {
-        // Success callback - maybe show a toast or refresh state
-        console.log("Native purchase successful and verified");
+        // Firestore listener updates hasPurchased after server verify
       });
     }
 
-    // Ensure specific headers for Android CORS handshake
     const configUrl = getApiUrl(`/api/config?t=${Date.now()}`);
-    console.log("Fetching config from:", configUrl);
 
     httpClient(configUrl, {
       method: 'GET',
@@ -221,7 +218,6 @@ export default function App() {
       }
     })
       .then(async res => {
-        console.log(`API Response: ${res.status} ${res.statusText}`);
         if (!res.ok) {
           const text = await res.text().catch(() => "No body");
           throw new Error(`HTTP error! status: ${res.status}. Body: ${text.substring(0, 50)}`);
@@ -285,12 +281,15 @@ export default function App() {
   // Handle payment success from URL (Stripe Checkout return)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      const sessionId = params.get('session_id');
-      // Fallback unlock if webhook is slow/missing: confirm session with API
-      if (sessionId && user?.uid) {
-        void bearerHeaders().then((auth) =>
-          httpClient(getApiUrl('/api/confirm-checkout-session'), {
+    if (params.get('payment') === 'success' && params.get('session_id')) {
+      sessionStorage.setItem('mwdCheckoutSession', params.get('session_id') as string);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    const sessionId = sessionStorage.getItem('mwdCheckoutSession');
+    if (sessionId && user?.uid) {
+      void bearerHeaders().then((auth) =>
+        httpClient(getApiUrl('/api/confirm-checkout-session'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...auth },
           body: JSON.stringify({ sessionId, userId: user.uid }),
@@ -299,19 +298,18 @@ export default function App() {
             if (!res.ok) {
               const data = await res.json().catch(() => ({}));
               console.warn('confirm-checkout-session failed', data);
-            } else {
-              console.log('Checkout confirmed; hasPurchased should update via Firestore');
+              return;
             }
+            sessionStorage.removeItem('mwdCheckoutSession');
           })
           .catch((err) => console.warn('confirm-checkout-session error', err))
-        );
-      }
-      window.history.replaceState({}, document.title, window.location.pathname);
+      );
     }
   }, [user?.uid, stripePubKey, isStripeConfigured, canPurchase]);
 
   const handlePurchase = async () => {
     if (!user) {
+      sessionStorage.setItem('mwdPendingPurchase', '1');
       login();
       return;
     }
@@ -334,12 +332,19 @@ export default function App() {
       onSuccess: () => {
         // Access is usually handled by Firebase listeners, 
         // but we can provide immediate feedback here
-        console.log("Purchase process completed successfully");
+        /* unlock arrives via the user snapshot */
       },
       onError: (err) => setPurchaseError(err),
       onProgress: (loading) => setIsPurchasing(loading)
     });
   };
+
+  useEffect(() => {
+    if (!user || !canPurchase) return;
+    if (sessionStorage.getItem('mwdPendingPurchase') !== '1') return;
+    sessionStorage.removeItem('mwdPendingPurchase');
+    void handlePurchase();
+  }, [user?.uid, canPurchase]);
 
   // Reset to landing page on logout
   useEffect(() => {
@@ -1103,7 +1108,7 @@ export default function App() {
                   Continue Learning
                 </button>
                 <button 
-                  onClick={() => { setQuizAnswers({}); setQuizSubmitted(false); setView('quiz'); }}
+                  onClick={() => { if (currentSection) startQuiz(currentSection); }}
                   className="w-full btn-secondary flex items-center justify-center gap-2"
                 >
                   <RotateCcw size={18} /> Retake Quiz
@@ -1205,11 +1210,17 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         const sim = simLabCatalog.find(s => s.id === activeSimId);
-                        if (sim) {
+                        if (!sim) return;
+                        const moduleIndex = mwdCurriculum.findIndex((s) => s.id === sim.sectionId);
+                        if (moduleIndex >= 3 && !hasPurchased) {
                           setView('curriculum');
-                          setCurrentSectionId(sim.sectionId);
+                          setCurrentSectionId(null);
                           setActiveSimId(null);
+                          return;
                         }
+                        setView('curriculum');
+                        setCurrentSectionId(sim.sectionId);
+                        setActiveSimId(null);
                       }}
                       className="text-[11px] font-medium text-emerald-400"
                     >

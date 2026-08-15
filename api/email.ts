@@ -32,6 +32,24 @@ export function isEmailConfigured(): boolean {
   return Boolean(getEnv("RESEND_API_KEY"));
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      case "'": return "&#39;";
+      default: return ch;
+    }
+  });
+}
+
+function displayName(name?: string | null, fallback = "there"): { raw: string; html: string } {
+  const raw = (name || "").trim() || fallback;
+  return { raw, html: escapeHtml(raw) };
+}
+
 function fromAddress(): string {
   const email = getEnv("EMAIL_FROM", "info@compessential.com");
   const name = getEnv("EMAIL_FROM_NAME", "MWD Pro");
@@ -126,10 +144,10 @@ export async function sendWelcomeEmail(opts: {
   to: string;
   name?: string | null;
 }): Promise<EmailResult> {
-  const name = (opts.name || "").trim() || "there";
+  const name = displayName(opts.name, "there");
   const url = appBaseUrl();
   const subject = "Welcome to MWD Pro — your training starts here";
-  const text = `Hi ${name},
+  const text = `Hi ${name.raw},
 
 Welcome to MWD Pro by Comp Essential.
 
@@ -141,7 +159,7 @@ Open the app: ${url}
 info@compessential.com`;
 
   const html = baseLayout(
-    `Welcome, ${name}`,
+    `Welcome, ${name.html}`,
     `<p>You're in. MWD Pro is built for field techs who want clear, practical Measurement While Drilling training—not dense manuals.</p>
      <p style="margin:20px 0 8px;color:#fafafa;font-weight:600;">What you can do right now</p>
      <ul style="padding-left:18px;margin:0 0 20px;">
@@ -164,10 +182,10 @@ export async function sendPurchaseEmail(opts: {
   to: string;
   name?: string | null;
 }): Promise<EmailResult> {
-  const name = (opts.name || "").trim() || "there";
+  const name = displayName(opts.name, "there");
   const url = appBaseUrl();
   const subject = "You're unlocked — full MWD Pro access";
-  const text = `Hi ${name},
+  const text = `Hi ${name.raw},
 
 Your MWD Pro full-access purchase is confirmed.
 
@@ -180,7 +198,7 @@ info@compessential.com`;
 
   const html = baseLayout(
     "Full access unlocked",
-    `<p>Hi ${name}, your payment went through. You now have <strong style="color:#fafafa;">lifetime access</strong> to the complete MWD Pro curriculum.</p>
+    `<p>Hi ${name.html}, your payment went through. You now have <strong style="color:#fafafa;">lifetime access</strong> to the complete MWD Pro curriculum.</p>
      <p style="margin:20px 0 8px;color:#fafafa;font-weight:600;">Included</p>
      <ul style="padding-left:18px;margin:0 0 20px;">
        <li>All 15 training modules</li>
@@ -202,10 +220,10 @@ export async function sendCertificateEmail(opts: {
   to: string;
   name?: string | null;
 }): Promise<EmailResult> {
-  const name = (opts.name || "").trim() || "Trainee";
+  const name = displayName(opts.name, "Trainee");
   const url = appBaseUrl();
   const subject = "Certificate earned — MWD Professional";
-  const text = `Congratulations ${name},
+  const text = `Congratulations ${name.raw},
 
 You completed the MWD Pro certification path. Open your profile in the app to view your certificate.
 
@@ -216,7 +234,7 @@ info@compessential.com`;
 
   const html = baseLayout(
     "Certificate earned",
-    `<p>Congratulations, <strong style="color:#fafafa;">${name}</strong>.</p>
+    `<p>Congratulations, <strong style="color:#fafafa;">${name.html}</strong>.</p>
      <p>You demonstrated mastery across the MWD Pro curriculum. Open the app to view and share your certificate.</p>
      <p style="margin:24px 0;">
        <a href="${url}" style="display:inline-block;background:#10b981;color:#052e1c;font-weight:700;text-decoration:none;padding:12px 18px;border-radius:10px;">

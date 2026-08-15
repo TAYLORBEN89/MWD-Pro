@@ -122,7 +122,11 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(express.json({
   verify: (req: any, res, buf) => {
     if (req.url.startsWith('/api/webhook')) {
@@ -139,7 +143,8 @@ const limiter = rateLimit({
   message: { error: "Too many requests." }
 });
 app.use("/api/", (req, res, next) => {
-  if (req.originalUrl.includes("/webhook")) return next();
+  const pathOnly = String(req.originalUrl || req.url || "").split("?")[0];
+  if (pathOnly === "/api/webhook" || pathOnly === "/webhook") return next();
   return limiter(req, res, next);
 });
 
@@ -251,7 +256,7 @@ handleApiRoute("/ping", (req, res) => {
 handleApiRoute("/health", (req, res) => {
   res.json({ status: "ok", env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
 });
-async function requireAuthedUid(req: express.Request, res: express.Response): Promise<string | null> {
+async function requireAuthedUser(req: express.Request, res: express.Response): Promise<{ uid: string; email?: string } | null> {
   if (!admin.apps.length) {
     res.status(503).json({ error: "Auth service unavailable" });
     return null;
@@ -264,7 +269,7 @@ async function requireAuthedUid(req: express.Request, res: express.Response): Pr
   }
   try {
     const decoded = await admin.auth().verifyIdToken(token);
-    return decoded.uid;
+    return { uid: decoded.uid, email: decoded.email };
   } catch (err: any) {
     console.warn("ID token verification failed:", err?.message || err);
     res.status(401).json({ error: "Invalid or expired session. Sign in again." });
@@ -272,18 +277,21 @@ async function requireAuthedUid(req: express.Request, res: express.Response): Pr
   }
 }
 
+async function requireAuthedUid(req: express.Request, res: express.Response): Promise<string | null> {
+  const user = await requireAuthedUser(req, res);
+  return user?.uid ?? null;
+}
+
 // Email: welcome (idempotent via Firestore flag)
 handleApiRoute("/email/welcome", async (req, res) => {
   try {
-    const authedUid = await requireAuthedUid(req, res);
-    if (!authedUid) return;
-    const { uid, email, displayName } = req.body || {};
-    const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
-    if (!uid || typeof uid !== "string" || uid !== authedUid || uid.length > 128) {
-      return res.status(400).json({ error: "Invalid or missing uid" });
-    }
-    if (!email || !emailRegex.test(email) || email.length > 255) {
-      return res.status(400).json({ error: "Invalid or missing email" });
+    const authed = await requireAuthedUser(req, res);
+    if (!authed) return;
+    const uid = authed.uid;
+    const email = authed.email;
+    const { displayName } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: "Signed-in account has no email" });
     }
 
     if (!isEmailConfigured()) {
@@ -344,15 +352,13 @@ handleApiRoute("/email/status", (_req, res) => {
 // Certificate email (idempotent)
 handleApiRoute("/email/certificate", async (req, res) => {
   try {
-    const authedUid = await requireAuthedUid(req, res);
-    if (!authedUid) return;
-    const { uid, email, displayName } = req.body || {};
-    const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
-    if (!uid || typeof uid !== "string" || uid !== authedUid || uid.length > 128) {
-      return res.status(400).json({ error: "Invalid or missing uid" });
-    }
-    if (!email || !emailRegex.test(email) || email.length > 255) {
-      return res.status(400).json({ error: "Invalid or missing email" });
+    const authed = await requireAuthedUser(req, res);
+    if (!authed) return;
+    const uid = authed.uid;
+    const email = authed.email;
+    const { displayName } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: "Signed-in account has no email" });
     }
     if (!isEmailConfigured()) {
       return res.status(503).json({
@@ -535,7 +541,9 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
 
     const stripeInstance = getStripe();
     const priceId = await getOrCreateMwdProduct();
-    const origin = req.headers.origin || `https://${req.headers.host}`;
+    const requestedOrigin = String(req.headers.origin || "").replace(/\/$/, "");
+    const fallbackOrigin = (getEnv("APP_URL") || getEnv("VITE_APP_URL") || "https://compessential.com").replace(/\/$/, "");
+    const origin = allowedOrigins.includes(requestedOrigin) ? requestedOrigin : fallbackOrigin;
     // Classic Checkout: disable Managed Payments so existing products work without forced tax-code setup.
     // Re-enable managed payments later once product tax_codes are configured in Stripe Dashboard.
     const sessionParams: Stripe.Checkout.SessionCreateParams & {
@@ -624,6 +632,10 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
     const { platform, transactionId, productId, purchaseToken, receipt, userId } = req.body;
     if (!userId || userId !== authedUid) {
       return res.status(403).json({ error: "Purchase does not belong to this user" });
+    }
+    const allowedProducts = new Set(["mwd_pro_full_course", "mwd_pro_full_course_ios"]);
+    if (!productId || !allowedProducts.has(productId)) {
+      return res.status(400).json({ error: "Unknown product" });
     }
     console.log(`Verifying ${platform} purchase:`, { transactionId, productId });
 
