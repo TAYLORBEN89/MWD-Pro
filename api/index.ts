@@ -9,6 +9,7 @@ import { rateLimit } from "express-rate-limit";
 import admin from "firebase-admin";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import fs from "fs";
+import crypto from "crypto";
 // googleapis loaded lazily in native purchase verify
 import { sendWelcomeEmail, sendPurchaseEmail, sendCertificateEmail, isEmailConfigured } from "./email.js";
 
@@ -67,8 +68,9 @@ if (!appUrl) {
 if (!admin.apps.length && firebaseConfig.projectId) {
   try {
     // Check for service account in env var first (Vercel friendly)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_PLAY_SERVICE_ACCOUNT;
+    if (saRaw) {
+      const serviceAccount = JSON.parse(saRaw);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: firebaseConfig.projectId
@@ -108,9 +110,9 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or same-origin)
     if (!origin) return callback(null, true);
     
-    const isAllowed = allowedOrigins.some(o => o === origin) || 
-                      origin.endsWith('.run.app') || 
-                      origin.startsWith('http://localhost:');
+    const allowLocal = process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+    const isAllowed = allowedOrigins.some(o => o === origin) ||
+      (allowLocal && origin.startsWith("http://localhost:"));
 
     if (isAllowed) {
       callback(null, true);
@@ -119,7 +121,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 app.use(helmet({
@@ -128,6 +130,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 app.use(express.json({
+  limit: "64kb",
   verify: (req: any, res, buf) => {
     if (req.url.startsWith('/api/webhook')) {
       req.rawBody = buf;
@@ -147,6 +150,14 @@ app.use("/api/", (req, res, next) => {
   if (pathOnly === "/api/webhook" || pathOnly === "/webhook") return next();
   return limiter(req, res, next);
 });
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later." }
+});
+app.use(["/api/email", "/api/create-checkout-session", "/api/confirm-checkout-session", "/api/verify-native-purchase"], sensitiveLimiter);
 
 // 1. LOGGING & API HEADER FORCING
 app.use((req, res, next) => {
@@ -256,7 +267,7 @@ handleApiRoute("/ping", (req, res) => {
 handleApiRoute("/health", (req, res) => {
   res.json({ status: "ok", env: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
 });
-async function requireAuthedUser(req: express.Request, res: express.Response): Promise<{ uid: string; email?: string } | null> {
+async function requireAuthedUser(req: express.Request, res: express.Response): Promise<{ uid: string; email?: string; name?: string } | null> {
   if (!admin.apps.length) {
     res.status(503).json({ error: "Auth service unavailable" });
     return null;
@@ -269,7 +280,11 @@ async function requireAuthedUser(req: express.Request, res: express.Response): P
   }
   try {
     const decoded = await admin.auth().verifyIdToken(token);
-    return { uid: decoded.uid, email: decoded.email };
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      name: typeof decoded.name === "string" ? decoded.name.slice(0, 80) : undefined,
+    };
   } catch (err: any) {
     console.warn("ID token verification failed:", err?.message || err);
     res.status(401).json({ error: "Invalid or expired session. Sign in again." });
@@ -289,7 +304,6 @@ handleApiRoute("/email/welcome", async (req, res) => {
     if (!authed) return;
     const uid = authed.uid;
     const email = authed.email;
-    const { displayName } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: "Signed-in account has no email" });
     }
@@ -297,7 +311,7 @@ handleApiRoute("/email/welcome", async (req, res) => {
     if (!isEmailConfigured()) {
       return res.status(503).json({
         error: "EMAIL_NOT_CONFIGURED",
-        message: "RESEND_API_KEY is not set. Add it in Vercel env to send mail from info@compessential.com.",
+        message: "Email is not configured.",
       });
     }
 
@@ -310,7 +324,7 @@ handleApiRoute("/email/welcome", async (req, res) => {
 
     const result = await sendWelcomeEmail({
       to: email,
-      name: displayName || snap.data()?.displayName || null,
+      name: authed.name || snap.data()?.displayName || null,
     });
 
     if (!result.ok) {
@@ -337,7 +351,7 @@ handleApiRoute("/email/welcome", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Welcome email route error:", err);
-    res.status(500).json({ error: err.message || "Failed to send welcome email" });
+    res.status(500).json({ error: "Failed to send welcome email" });
   }
 }, "post");
 
@@ -356,14 +370,13 @@ handleApiRoute("/email/certificate", async (req, res) => {
     if (!authed) return;
     const uid = authed.uid;
     const email = authed.email;
-    const { displayName } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: "Signed-in account has no email" });
     }
     if (!isEmailConfigured()) {
       return res.status(503).json({
         error: "EMAIL_NOT_CONFIGURED",
-        message: "RESEND_API_KEY is not set.",
+        message: "Email is not configured.",
       });
     }
 
@@ -385,7 +398,7 @@ handleApiRoute("/email/certificate", async (req, res) => {
 
     const result = await sendCertificateEmail({
       to: email,
-      name: displayName || snap.data()?.displayName || null,
+      name: authed.name || snap.data()?.displayName || null,
     });
 
     if (!result.ok) {
@@ -414,7 +427,7 @@ handleApiRoute("/email/certificate", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Certificate email route error:", err);
-    res.status(500).json({ error: err.message || "Failed to send certificate email" });
+    res.status(500).json({ error: "Failed to send certificate email" });
   }
 }, "post");
 
@@ -518,25 +531,25 @@ handleApiRoute("/webhook", async (req: any, res) => {
     res.json({ received: true });
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Webhook rejected" });
   }
 }, 'post');
 
 // Stripe Checkout
 handleApiRoute("/create-checkout-session", async (req, res) => {
   try {
-    const authedUid = await requireAuthedUid(req, res);
-    if (!authedUid) return;
-    const { userId, userEmail } = req.body;
+    const authed = await requireAuthedUser(req, res);
+    if (!authed) return;
+    const { userId } = req.body;
+    const userEmail = authed.email;
     
-    // Robust Input Validation
-    if (!userId || typeof userId !== 'string' || userId !== authedUid || userId.length > 128) {
+    if (!userId || typeof userId !== 'string' || userId !== authed.uid || userId.length > 128) {
       return res.status(400).json({ error: "Invalid or missing userId" });
     }
     
     const emailRegex = /^[^\s@]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
     if (!userEmail || !emailRegex.test(userEmail) || userEmail.length > 255) {
-      return res.status(400).json({ error: "Invalid or missing userEmail" });
+      return res.status(400).json({ error: "Signed-in account has no valid email" });
     }
 
     const stripeInstance = getStripe();
@@ -562,7 +575,7 @@ handleApiRoute("/create-checkout-session", async (req, res) => {
     res.json({ id: session.id, url: session.url });
   } catch (error: any) {
     console.error("Stripe Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Checkout could not be started" });
   }
 }, 'post');
 
@@ -572,7 +585,7 @@ handleApiRoute("/confirm-checkout-session", async (req, res) => {
     const authedUid = await requireAuthedUid(req, res);
     if (!authedUid) return;
     const { sessionId, userId } = req.body || {};
-    if (!sessionId || typeof sessionId !== "string" || !userId || typeof userId !== "string" || userId !== authedUid) {
+    if (!sessionId || typeof sessionId !== "string" || sessionId.length > 256 || !userId || typeof userId !== "string" || userId !== authedUid) {
       return res.status(400).json({ error: "sessionId and userId are required" });
     }
 
@@ -620,7 +633,7 @@ handleApiRoute("/confirm-checkout-session", async (req, res) => {
     return res.json({ success: true });
   } catch (error: any) {
     console.error("confirm-checkout-session error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Could not confirm checkout" });
   }
 }, 'post');
 
@@ -633,11 +646,17 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
     if (!userId || userId !== authedUid) {
       return res.status(403).json({ error: "Purchase does not belong to this user" });
     }
+    if (platform !== "android" && platform !== "ios") {
+      return res.status(400).json({ error: "Invalid platform" });
+    }
+    if (!purchaseToken || typeof purchaseToken !== "string" || purchaseToken.length > 4000) {
+      return res.status(400).json({ error: "Invalid purchase token" });
+    }
     const allowedProducts = new Set(["mwd_pro_full_course", "mwd_pro_full_course_ios"]);
     if (!productId || !allowedProducts.has(productId)) {
       return res.status(400).json({ error: "Unknown product" });
     }
-    console.log(`Verifying ${platform} purchase:`, { transactionId, productId });
+    console.log(`Verifying ${platform} purchase:`, { productId });
 
     let isValid = false;
 
@@ -672,10 +691,7 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
           }
         } catch (err: any) {
           console.error("Google Play Verification Technical Error:", err.message);
-          return res.status(500).json({ 
-            error: "VERIFICATION_TECH_FAILURE", 
-            details: err.message 
-          });
+          return res.status(500).json({ error: "Verification failed" });
         }
       } else {
         console.warn("GOOGLE_PLAY_SERVICE_ACCOUNT not set. Denying verification.");
@@ -688,11 +704,23 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
 
     if (isValid && userId) {
       const db = getFirestore();
+      const tokenHash = crypto.createHash("sha256").update(purchaseToken).digest("hex");
+      const purchaseRef = db.collection("purchases").doc(tokenHash);
+      const prior = await purchaseRef.get();
+      if (prior.exists && prior.data()?.uid && prior.data()?.uid !== userId) {
+        return res.status(409).json({ error: "Purchase already claimed" });
+      }
+      await purchaseRef.set({
+        uid: userId,
+        productId,
+        platform,
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
       await db.collection("users").doc(userId).set({
         hasPurchased: true,
         purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
         platform: platform,
-        transactionId: transactionId
+        transactionId: typeof transactionId === "string" ? transactionId.slice(0, 128) : null
       }, { merge: true });
 
       // Optional purchase email for store buys when profile has email
@@ -723,24 +751,20 @@ handleApiRoute("/verify-native-purchase", async (req, res) => {
     res.status(400).json({ error: "Invalid purchase" });
   } catch (error: any) {
     console.error("Verification Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Verification failed" });
   }
 }, 'post');
 
 // Catch-all for /api
 app.all("/api/*", (req, res) => {
   console.log(`[404 API] Unmatched request: ${req.method} ${req.url}`);
-  res.status(404).json({ 
-    error: `Not found: ${req.method} ${req.url}`,
-    message: "This is a JSON 404 from the /api/ catch-all. If you see HTML, something else is intercepting this.",
-    timestamp: new Date().toISOString()
-  });
+  res.status(404).json({ error: "Not found" });
 });
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("Express Error:", err);
-  res.status(500).json({ error: "Internal Server Error", message: err.message });
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
 async function startServer() {

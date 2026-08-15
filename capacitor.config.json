@@ -28,6 +28,6 @@
     }
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": false
   }
 }

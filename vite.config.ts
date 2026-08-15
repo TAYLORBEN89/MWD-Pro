@@ -31,9 +31,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY),
       'process.env.APP_URL': JSON.stringify(process.env.APP_URL || env.APP_URL || ''),
-      // Also expose as VITE_APP_URL for standard import.meta.env access
       'import.meta.env.VITE_APP_URL': JSON.stringify(process.env.APP_URL || env.APP_URL || process.env.VITE_APP_URL || env.VITE_APP_URL || ''),
     },
     resolve: {

@@ -5,7 +5,6 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // Purchase / cert flags are written only by the Admin SDK (Stripe, stores, email).
     function entitlementUnchanged() {
       let incoming = request.resource.data;
       let existing = resource.data;
@@ -22,12 +21,18 @@ service cloud.firestore {
         && incoming.get('platform', null) == existing.get('platform', null);
     }
 
+    function profileKeysOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['displayName', 'photoURL', 'email', 'uid', 'createdAt', 'badges']);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId)
         && request.resource.data.get('hasPurchased', false) == false
-        && request.resource.data.get('certified', false) == false;
-      allow update: if isOwner(userId) && entitlementUnchanged();
+        && request.resource.data.get('certified', false) == false
+        && request.resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'email', 'createdAt', 'badges']);
+      allow update: if isOwner(userId) && entitlementUnchanged() && profileKeysOnly();
       allow delete: if false;
     }
 
@@ -35,11 +40,19 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.sectionId is string
+        && request.resource.data.sectionId.matches('^section-([1-9]|1[0-5])$')
         && request.resource.data.score is number
         && request.resource.data.score >= 0
-        && request.resource.data.score <= 100;
+        && request.resource.data.score <= 100
+        && request.resource.data.keys().hasOnly([
+          'uid', 'sectionId', 'sectionTitle', 'score', 'correctAnswers', 'totalQuestions', 'completedAt'
+        ]);
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    match /purchases/{id} {
+      allow read, write: if false;
     }
   }
 }

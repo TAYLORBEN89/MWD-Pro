@@ -254,15 +254,19 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const saveQuizResult = async (sectionId: string, sectionTitle: string, score: number, correctAnswers: number, totalQuestions: number) => {
     if (!user) return;
+    if (!/^section-([1-9]|1[0-5])$/.test(sectionId)) return;
+    const safeScore = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+    const safeCorrect = Math.max(0, Math.round(Number(correctAnswers) || 0));
+    const safeTotal = Math.max(1, Math.round(Number(totalQuestions) || 1));
 
     try {
       const resultData = {
         uid: user.uid,
         sectionId,
-        sectionTitle,
-        score,
-        correctAnswers,
-        totalQuestions,
+        sectionTitle: String(sectionTitle || sectionId).slice(0, 160),
+        score: safeScore,
+        correctAnswers: safeCorrect,
+        totalQuestions: safeTotal,
         completedAt: serverTimestamp()
       };
       await addDoc(collection(db, 'results'), resultData);
@@ -280,9 +284,9 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (!alreadyEarned) {
             const newBadge: Badge = {
               id: `badge-${sectionId}`,
-              title: `${sectionTitle} Master`,
+              title: `${String(sectionTitle || sectionId).slice(0, 80)} Master`,
               icon: 'Award', // Default icon, can be customized per section
-              description: `Completed the ${sectionTitle} module with a score of ${score}%`,
+              description: `Completed the ${String(sectionTitle || sectionId).slice(0, 80)} module with a score of ${safeScore}%`,
               earnedAt: Date.now()
             };
             
