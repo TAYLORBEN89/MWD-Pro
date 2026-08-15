@@ -15,6 +15,6 @@
   "display": "standalone",
   "scope": "/",
   "theme_color": "#0a0a0a",
-  "orientation": "portrait",
+  "orientation": "any",
   "categories": ["education", "productivity"]
 }

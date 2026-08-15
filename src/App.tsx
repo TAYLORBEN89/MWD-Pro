@@ -508,7 +508,7 @@ export default function App() {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen w-full max-w-md mx-auto bg-canvas flex flex-col items-center justify-center p-8 text-center relative overflow-y-auto">
+      <div className="landing-screen">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle_at_50%_50%,#1a1a1a_0%,transparent_70%)] opacity-50" />
           <div className="absolute top-[20%] right-[-20%] w-[80%] h-[80%] bg-[radial-gradient(circle_at_50%_50%,#10b981_0%,transparent_70%)] opacity-10 blur-[100px]" />
@@ -517,20 +517,20 @@ export default function App() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 space-y-12"
+          className="landing-inner space-y-12"
         >
           <div className="space-y-6">
-            <div className="w-20 h-20 bg-emerald-500/100 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow">
+            <div className="w-20 h-20 bg-emerald-500/100 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow sm:w-24 sm:h-24">
               <GraduationCap size={48} />
             </div>
             <div className="space-y-2">
-              <h1 className="text-4xl title-display tracking-tighter">MWD PRO</h1>
+              <h1 className="landing-title">MWD PRO</h1>
               <p className="label-caps">Petro Academy Training</p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <p className="text-zinc-400 text-lg leading-relaxed">
+            <p className="landing-copy">
               Master the art of <span className="text-white font-semibold">Measurement While Drilling</span> with our professional certification program.
             </p>
           </div>
@@ -555,6 +555,7 @@ export default function App() {
       <div className="app-shell">
       {/* Header */}
       <header className="app-header">
+        <div className="app-rail app-header-row">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-emerald-500/100 rounded-lg flex items-center justify-center text-zinc-950">
             <GraduationCap size={24} />
@@ -572,7 +573,7 @@ export default function App() {
               className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-100 transition-colors"
             >
               <LayoutGrid size={20} />
-              <span className="text-[9px] font-medium tracking-wide">Menu</span>
+              <span className="app-chrome-label">Menu</span>
             </button>
           )}
           
@@ -582,7 +583,7 @@ export default function App() {
               className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-red-400 transition-colors"
             >
               <LogOut size={20} />
-              <span className="text-[9px] font-medium tracking-wide">Logout</span>
+              <span className="app-chrome-label">Logout</span>
             </button>
           ) : (
             <button 
@@ -590,13 +591,14 @@ export default function App() {
               className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-emerald-400 transition-colors"
             >
               <LogIn size={20} />
-              <span className="text-[9px] font-medium tracking-wide">Login</span>
+              <span className="app-chrome-label">Login</span>
             </button>
           )}
         </div>
+        </div>
       </header>
 
-      <main className="app-main">
+      <main className="app-main app-rail">
         <AnimatePresence mode="wait">
           {view === 'curriculum' && (
             <motion.div 
@@ -781,12 +783,13 @@ export default function App() {
                 </motion.div>
               ) : (
                 <div className="space-y-6">
+                  <div className="home-hero">
                   <div className="space-y-2">
                     <p className="label-caps text-[#8a9099]">{timeHello()}</p>
-                    <h2 className="text-2xl title-display text-[#e6e8eb]">
+                    <h2 className="page-title">
                       Hello{firstName(user?.displayName, user?.email) ? `, ${firstName(user?.displayName, user?.email)}` : ''}
                     </h2>
-                    <p className="text-[13px] leading-relaxed text-[#8a9099]">
+                    <p className="page-lede">
                       {(() => {
                         const next = profileLog.find((row) => (row.best ?? -1) < 80);
                         if (!user) {
@@ -818,6 +821,7 @@ export default function App() {
                       />
                     </div>
                   </div>
+                  </div>
 
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
@@ -830,7 +834,7 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="grid gap-5">
+                  <div className="module-grid">
                     {filteredCurriculum.map((section) => {
                       const index = mwdCurriculum.findIndex((s) => s.id === section.id);
                       const isCompleted = results.some((r) => r.sectionId === section.id && r.score >= 80);
@@ -871,11 +875,11 @@ export default function App() {
                           {isFree && !hasPurchased && <span className="module-photo-badge">Free</span>}
                           <div className="module-photo-body">
                             <div className="module-photo-meta">
-                              <span className="text-[11px] font-semibold tracking-wide text-emerald-400">
+                              <span className="font-semibold tracking-wide text-emerald-400">
                                 Module {index + 1}
                               </span>
                               <span className="h-1 w-1 rounded-full bg-white/30" />
-                              <span className="text-[11px] text-zinc-300/90">{section.quizQuestions.length} questions</span>
+                              <span className="text-zinc-300/90">{section.quizQuestions.length} questions</span>
                             </div>
                             <h3 className="module-photo-title">{section.title}</h3>
                             <div className="module-photo-sub">
@@ -1168,7 +1172,7 @@ export default function App() {
                   <FlaskConical size={16} />
                   <span className="label-caps">Sim Lab</span>
                 </div>
-                <h2 className="text-2xl title-display">Practice instruments</h2>
+                <h2 className="page-title">Practice instruments</h2>
                 <p className="body-muted">
                   Run every instrument here. Free labs open immediately; pro labs unlock with full access.
                 </p>
@@ -1211,7 +1215,7 @@ export default function App() {
               )}
 
               {!activeSimId && (
-              <div className="grid gap-3">
+              <div className="sim-lab-grid">
                 {simLabCatalog.map((sim) => {
                   const Icon = sim.icon;
                   const locked = !sim.isFree && !hasPurchased;
@@ -1243,14 +1247,14 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="sim-lab-title font-semibold text-[15px] truncate">{sim.title}</h3>
+                            <h3 className="sim-lab-title font-semibold truncate">{sim.title}</h3>
                             {sim.isFree ? (
-                              <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium shrink-0">Free</span>
+                              <span className="sim-lab-pill bg-emerald-500/15 text-emerald-400">Free</span>
                             ) : (
-                              <span className="text-[10px] bg-elevated text-zinc-300 px-2 py-0.5 rounded-full font-medium shrink-0">Pro</span>
+                              <span className="sim-lab-pill bg-elevated text-zinc-300">Pro</span>
                             )}
                           </div>
-                          <p className="sim-lab-sub text-xs mt-0.5">{sim.subtitle}</p>
+                          <p className="sim-lab-sub mt-0.5">{sim.subtitle}</p>
                         </div>
                         <ChevronRight className="sim-lab-chevron shrink-0" size={18} />
                       </div>
@@ -1260,7 +1264,7 @@ export default function App() {
               </div>
               )}
 
-              {!hasPurchased && (
+              {!hasPurchased && !activeSimId && (
                 <div className="paywall-card space-y-4">
                   <div>
                     <h3 className="text-lg title-display">Unlock every lab</h3>
@@ -1455,28 +1459,30 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-3 py-2.5 flex justify-around items-center bg-canvas/90 backdrop-blur-xl border-t border-white/5 z-50">
+      <nav className="app-nav">
+        <div className="app-rail app-nav-row">
         <button 
           onClick={() => { setView('curriculum'); setCurrentSectionId(null); }}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'curriculum' || view === 'quiz' || view === 'results' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <BookOpen size={20} />
-          <span className="text-[10px] font-medium tracking-wide">Learn</span>
+          <span className="app-nav-label">Learn</span>
         </button>
         <button 
           onClick={() => { setView('simlab'); setCurrentSectionId(null); }}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'simlab' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <FlaskConical size={20} />
-          <span className="text-[10px] font-medium tracking-wide">Sim Lab</span>
+          <span className="app-nav-label">Sim Lab</span>
         </button>
         <button 
           onClick={() => setView('profile')}
           className={`flex flex-col items-center gap-0.5 px-3 py-1 ${view === 'profile' || view === 'certification' ? 'text-emerald-400' : 'text-zinc-500'}`}
         >
           <UserIcon size={20} />
-          <span className="text-[10px] font-medium tracking-wide">Profile</span>
+          <span className="app-nav-label">Profile</span>
         </button>
+        </div>
       </nav>
     </div>
       {/* Cinema Ad Fullscreen Overlay */}
@@ -1486,7 +1492,7 @@ export default function App() {
 
       {/* Purchase Error Toast */}
       {purchaseError && (
-        <div className="fixed bottom-4 left-4 right-4 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="app-toast animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="surface-card border border-red-500/20 p-4 flex items-center gap-3">
             <div className="w-8 h-8 bg-red-500/10 rounded-full flex items-center justify-center shrink-0">
               <AlertCircle className="text-red-500 w-4 h-4" />

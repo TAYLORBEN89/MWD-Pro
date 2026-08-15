@@ -616,12 +616,12 @@ export const ToolfaceDial: React.FC = () => {
   const faceColor = tfRefMode === 'gtf' ? '#3ecf8e' : '#4d8ecf';
 
   return (
-    <div className="space-y-4">
+    <div className="hmi-lab">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="label-caps">Well control</p>
           <h3 className="instrument-title mt-1">Toolface Control</h3>
-          <p className="mt-1.5 min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{level.brief}</p>
+          <p className="hmi-brief">{level.brief}</p>
         </div>
         <span className={`hmi-lamp w-[5.6rem] shrink-0 justify-end ${chip.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
@@ -643,6 +643,8 @@ export const ToolfaceDial: React.FC = () => {
         ))}
       </div>
 
+      <div className="hmi-lab-stage">
+      <div className="hmi-lab-plot">
       <div className="flex gap-1.5">
         {(
           [
@@ -716,7 +718,7 @@ export const ToolfaceDial: React.FC = () => {
         ].map((row) => (
           <div key={row.l}>
             <p className="label-caps">{row.l}</p>
-            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
+            <p className={`hmi-readout hmi-value ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
               {row.v}
               <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
             </p>
@@ -724,7 +726,7 @@ export const ToolfaceDial: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3 hmi-readout text-[11px] text-[#8a9099]">
+      <div className="flex items-center justify-between gap-3 hmi-readout hmi-meta">
         <span>
           MD {bit.md.toFixed(0)}
           <span className="text-[#5c636e]"> · </span>
@@ -742,12 +744,14 @@ export const ToolfaceDial: React.FC = () => {
           <path d={spark(grHist)} fill="none" stroke="#3aa8b8" strokeWidth="1.1" />
         </svg>
       </div>
+      </div>
 
+      <div className="hmi-lab-controls">
       <div className="flex flex-col items-center gap-2">
         <svg
           ref={dialRef}
           viewBox="-48 -48 96 96"
-          className="h-44 w-44 shrink-0 touch-none cursor-crosshair select-none overflow-hidden"
+          className="hmi-dial shrink-0 touch-none cursor-crosshair select-none overflow-hidden"
           role="slider"
           aria-label="Command toolface"
           aria-valuemin={0}
@@ -799,7 +803,7 @@ export const ToolfaceDial: React.FC = () => {
           />
           <circle r="2" fill="#e6e8eb" className="pointer-events-none" />
         </svg>
-        <p className="hmi-readout text-[11px] text-[#8a9099]">
+        <p className="hmi-readout hmi-meta">
           Cmd {cmdTf}°
           <span className="text-[#5c636e]"> · </span>
           {tfRefMode.toUpperCase()} {displayTf.toFixed(0)}°
@@ -904,13 +908,13 @@ export const ToolfaceDial: React.FC = () => {
         </button>
       </div>
 
-      <p className={`min-h-[1.15rem] hmi-readout text-[11px] text-[#d4a017] ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}>
+      <p className={`min-h-[1.15rem] hmi-readout hmi-meta text-[#d4a017] ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}>
         {lastSurvey
           ? `Station ${lastSurvey.md.toFixed(0)} · Inc ${lastSurvey.inc.toFixed(1)}° / ${targetNow.inc.toFixed(1)}° · TVD ${lastSurvey.tvd.toFixed(0)} / ${targetNow.tvd.toFixed(0)}`
           : 'Station'}
       </p>
 
-      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{coach}</p>
+      <p className="hmi-coach">{coach}</p>
 
       {phase === 'debrief' && (
         <div className="space-y-2 border-t border-[#1d2026] pt-3">
@@ -944,6 +948,8 @@ export const ToolfaceDial: React.FC = () => {
           ))}
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 };

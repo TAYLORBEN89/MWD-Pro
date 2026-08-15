@@ -485,12 +485,12 @@ export const VibrationMonitor: React.FC = () => {
   })();
 
   return (
-    <div className="space-y-4">
+    <div className="hmi-lab">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="label-caps">Downhole dynamics</p>
           <h3 className="instrument-title mt-1">Vibration Monitor</h3>
-          <p className="mt-1.5 min-h-[3.25rem] text-[12px] leading-relaxed text-[#8a9099]">{level.brief}</p>
+          <p className="hmi-brief">{level.brief}</p>
         </div>
         <span className={`hmi-lamp w-[5.8rem] shrink-0 justify-end whitespace-nowrap ${chip.cls}`}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.bar }} />
@@ -512,6 +512,8 @@ export const VibrationMonitor: React.FC = () => {
         ))}
       </div>
 
+      <div className="hmi-lab-stage">
+      <div className="hmi-lab-plot">
       <div className="flex gap-2 overflow-hidden border border-[#1d2026] bg-[#07080a] p-2">
         <svg viewBox="0 0 72 148" className="h-[148px] w-16 shrink-0 overflow-hidden" aria-hidden="true">
           <rect x="20" y="8" width="32" height="128" fill="none" stroke="#2a2d33" />
@@ -565,7 +567,7 @@ export const VibrationMonitor: React.FC = () => {
         ].map((row) => (
           <div key={row.l}>
             <p className="label-caps">{row.l}</p>
-            <p className={`hmi-readout text-[18px] leading-none ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
+            <p className={`hmi-readout hmi-value ${row.warn ? 'text-[#e24b4a]' : 'text-[#e6e8eb]'}`}>
               {row.v}
               <span className="ml-0.5 text-[10px] text-[#5c636e]">{row.u}</span>
             </p>
@@ -573,7 +575,7 @@ export const VibrationMonitor: React.FC = () => {
         ))}
       </div>
 
-      <div className="hmi-readout text-[11px] text-[#8a9099]">
+      <div className="hmi-readout hmi-meta">
         MD {md.toFixed(0)}
         <span className="text-[#5c636e]"> · </span>
         Bit {bitNow.toFixed(0)}
@@ -584,7 +586,9 @@ export const VibrationMonitor: React.FC = () => {
         <span className="text-[#5c636e]"> · </span>
         GR {grLive.toFixed(0)}
       </div>
+      </div>
 
+      <div className="hmi-lab-controls">
       <div className="flex gap-1.5">
         {(['slide', 'rotate'] as const).map((m) => (
           <button
@@ -676,7 +680,7 @@ export const VibrationMonitor: React.FC = () => {
       </div>
 
       <p
-        className={`min-h-[1.15rem] hmi-readout text-[11px] ${
+        className={`min-h-[1.15rem] hmi-readout hmi-meta ${
           lastSurvey?.pass ? 'text-[#3ecf8e]' : 'text-[#d4a017]'
         } ${stationFlash && lastSurvey ? 'visible' : 'invisible'}`}
       >
@@ -685,7 +689,7 @@ export const VibrationMonitor: React.FC = () => {
           : 'Station'}
       </p>
 
-      <p className="min-h-[2.75rem] text-[12px] leading-relaxed text-[#8a9099]">{coach}</p>
+      <p className="hmi-coach">{coach}</p>
 
       {phase === 'debrief' && (
         <div className="space-y-2 border-t border-[#1d2026] pt-3">
@@ -718,6 +722,8 @@ export const VibrationMonitor: React.FC = () => {
           ))}
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 };
