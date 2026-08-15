@@ -60,7 +60,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import { mwdCurriculum } from './data/mwdData';
 import { simLabCatalog, getSimLabCover } from './data/simLab';
-import { getModuleCover, getModuleCoverPos, MODULE_BINS } from './data/moduleCovers';
+import { getModuleCover } from './data/moduleCovers';
 import { CurriculumSection, QuizQuestion } from './types';
 import { useFirebase } from './FirebaseContext';
 import { CinemaAdMode } from './components/CinemaAdMode';
@@ -329,15 +329,6 @@ export default function App() {
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [moduleFilter, setModuleFilter] = useState<'all' | 'free' | 'open' | 'done'>('all');
-  const [lastSectionId, setLastSectionId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('mwd-last-section');
-    } catch {
-      return null;
-    }
-  });
-  const unlockRef = useRef<HTMLDivElement | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSimId, setActiveSimId] = useState<string | null>(null);
@@ -358,52 +349,6 @@ export default function App() {
       s.content.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm]);
-
-  const sectionScore = (sectionId: string) => {
-    const scores = results.filter((r) => r.sectionId === sectionId).map((r) => r.score);
-    return scores.length ? Math.max(...scores) : null;
-  };
-
-  const sectionMeta = (section: CurriculumSection) => {
-    const index = mwdCurriculum.findIndex((s) => s.id === section.id);
-    const score = sectionScore(section.id);
-    const complete = score !== null && score >= 80;
-    const started = score !== null;
-    const isFree = index < 3;
-    const locked = index >= 3 && !hasPurchased;
-    return { index, score, complete, started, isFree, locked };
-  };
-
-  const continueSection = useMemo(() => {
-    const unlocked = mwdCurriculum.filter((_, i) => i < 3 || hasPurchased);
-    const last = lastSectionId ? unlocked.find((s) => s.id === lastSectionId) : null;
-    if (last && !sectionMeta(last).complete) return last;
-    return unlocked.find((s) => !sectionMeta(s).complete) ?? null;
-  }, [lastSectionId, hasPurchased, results]);
-
-  const openSection = (id: string) => {
-    setCurrentSectionId(id);
-    setLastSectionId(id);
-    try {
-      localStorage.setItem('mwd-last-section', id);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const revealUnlock = () => {
-    unlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
-  const visibleCurriculum = useMemo(() => {
-    return filteredCurriculum.filter((section) => {
-      const m = sectionMeta(section);
-      if (moduleFilter === 'free') return m.isFree;
-      if (moduleFilter === 'open') return !m.locked && !m.complete;
-      if (moduleFilter === 'done') return m.complete;
-      return true;
-    });
-  }, [filteredCurriculum, moduleFilter, results, hasPurchased]);
 
   const currentSection = useMemo(() => {
     return mwdCurriculum.find(s => s.id === currentSectionId);
@@ -600,23 +545,24 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-zinc-400">
-                  <BookOpen size={16} />
-                  <span className="label-caps">Curriculum</span>
-                </div>
-                {!currentSection && (
-                  <span className="hmi-readout text-[11px] text-[#8a9099]">
-                    {results.filter((r) => r.score >= 80).length}
-                    <span className="text-[#5c636e]"> / {mwdCurriculum.length}</span>
-                  </span>
-                )}
+              <div className="flex items-center gap-2 text-zinc-400 mb-2">
+                <BookOpen size={16} />
+                <span className="label-caps">Curriculum</span>
               </div>
-              {!currentSection && (
-                <div className="h-px overflow-hidden bg-[#1d2026]">
-                  <div className="h-px bg-[#3ecf8e]" style={{ width: `${overallProgress}%` }} />
+
+              <div className="surface-card p-4 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="label-meta">Your Progress</span>
+                  <span className="text-xs font-semibold text-emerald-400">{overallProgress}% Complete</span>
                 </div>
-              )}
+                <div className="progress-track">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${overallProgress}%` }}
+                    className="progress-fill"
+                  />
+                </div>
+              </div>
 
               {currentSection ? (
                 <motion.div 
@@ -769,315 +715,127 @@ export default function App() {
                   </div>
                 </motion.div>
               ) : (
-                <div className="space-y-5">
-                  <div className="flex items-end justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-2xl title-display">Training Modules</h2>
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#8a9099]">
-                        Three free to start. Finish the path for MWD Professional.
-                      </p>
-                    </div>
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <h2 className="text-2xl title-display">Training Modules</h2>
+                    <p className="body-muted">3 free modules to start. Complete the path for MWD Professional certification.</p>
                   </div>
 
-                  {continueSection && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const meta = sectionMeta(continueSection);
-                        if (meta.locked) {
-                          revealUnlock();
-                          return;
-                        }
-                        openSection(continueSection.id);
-                      }}
-                      className="seq-row seq-continue"
-                    >
-                      <span className="seq-idx">→</span>
-                      <img
-                        src={getModuleCover(continueSection.id)}
-                        alt=""
-                        className="seq-thumb"
-                        style={{ objectPosition: getModuleCoverPos(continueSection.id) }}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="label-caps text-[#3aa8b8]">Continue</span>
-                        <span className="mt-0.5 block truncate text-[13px] font-semibold tracking-tight text-[#e6e8eb]">
-                          {String(sectionMeta(continueSection).index + 1).padStart(2, '0')} · {continueSection.title}
-                        </span>
-                      </span>
-                      <ChevronRight className="shrink-0 text-[#5c636e]" size={16} />
-                    </button>
-                  )}
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {([
-                      ['all', 'All'],
-                      ['free', 'Free'],
-                      ['open', 'Open'],
-                      ['done', 'Done'],
-                    ] as const).map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setModuleFilter(id)}
-                        className={`hmi-key !px-2.5 !py-1.5 ${moduleFilter === id ? 'is-on' : ''}`}
-                        style={moduleFilter === id ? { borderColor: '#3ecf8e99', color: '#3ecf8e' } : undefined}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                    <label className="relative ml-auto min-w-[7.5rem] flex-1">
-                      <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#5c636e]" size={13} />
-                      <input
-                        type="search"
-                        placeholder="Filter"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="hmi-readout w-full border border-[#1d2026] bg-transparent py-1.5 pl-7 pr-2 text-[12px] text-[#e6e8eb] outline-none placeholder:text-[#5c636e] focus:border-[#3ecf8e66]"
-                      />
-                    </label>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search modules..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="input-field pl-12"
+                    />
                   </div>
-                  
-                  <div>
-                    {MODULE_BINS.map((bin) => {
-                      const rows = bin.sectionIds
-                        .map((id) => visibleCurriculum.find((s) => s.id === id))
-                        .filter((s): s is CurriculumSection => Boolean(s));
-                      if (!rows.length) return null;
+
+                  <div className="grid gap-5">
+                    {filteredCurriculum.map((section) => {
+                      const index = mwdCurriculum.findIndex((s) => s.id === section.id);
+                      const isCompleted = results.some((r) => r.sectionId === section.id && r.score >= 80);
+                      const isFree = index < 3;
+                      const isLocked = index >= 3 && !hasPurchased;
                       return (
-                        <div key={bin.id} className="mb-3">
-                          <p className="label-caps mb-1 px-0.5">{bin.label}</p>
-                          {rows.map((section) => {
-                            const meta = sectionMeta(section);
-                            const isContinue = continueSection?.id === section.id;
-                            const rail = meta.locked
-                              ? 'is-locked'
-                              : meta.complete
-                                ? 'is-done'
-                                : isContinue
-                                  ? 'is-next'
-                                  : meta.started
-                                    ? 'is-progress'
-                                    : '';
-                            return (
-                              <button
-                                key={section.id}
-                                type="button"
-                                onClick={() => {
-                                  if (meta.locked) {
-                                    revealUnlock();
-                                    return;
-                                  }
-                                  openSection(section.id);
-                                }}
-                                className={`seq-row ${rail}`}
-                              >
-                                <span className="seq-idx">{String(meta.index + 1).padStart(2, '0')}</span>
-                                <img
-                                  src={getModuleCover(section.id)}
-                                  alt=""
-                                  className="seq-thumb"
-                                  style={{ objectPosition: getModuleCoverPos(section.id) }}
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                                <span className="min-w-0 flex-1">
-                                  <span className={`block truncate text-[13px] font-semibold tracking-tight ${meta.locked ? 'text-[#8a9099]' : 'text-[#e6e8eb]'}`}>
-                                    {section.title}
-                                  </span>
-                                  <span className="mt-0.5 block text-[10px] text-[#5c636e]">
-                                    {meta.locked
-                                      ? 'Locked'
-                                      : meta.complete
-                                        ? 'Complete'
-                                        : isContinue
-                                          ? 'Up next'
-                                          : meta.started
-                                            ? 'In progress'
-                                            : `${section.quizQuestions.length} questions`}
-                                  </span>
+                        <button
+                          key={section.id}
+                          type="button"
+                          onClick={() => {
+                            if (isLocked) return;
+                            setCurrentSectionId(section.id);
+                          }}
+                          className={`group module-photo-card ${isCompleted ? 'is-complete' : ''} ${isLocked ? 'is-locked' : ''}`}
+                        >
+                          <img
+                            src={getModuleCover(section.id)}
+                            alt=""
+                            className="module-photo-bg"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          <div className="module-photo-scrim" aria-hidden />
+                          {isLocked && (
+                            <div className="module-photo-lock" aria-label="Locked">
+                              <Lock size={16} />
+                            </div>
+                          )}
+                          {isCompleted && !isLocked && (
+                            <div className="module-photo-done" aria-label="Completed">
+                              <CheckCircle2 size={18} />
+                            </div>
+                          )}
+                          {isFree && !hasPurchased && <span className="module-photo-badge">Free</span>}
+                          <div className="module-photo-body">
+                            <div className="module-photo-meta">
+                              <span className="text-[11px] font-semibold tracking-wide text-emerald-400">
+                                Module {index + 1}
+                              </span>
+                              <span className="h-1 w-1 rounded-full bg-white/30" />
+                              <span className="text-[11px] text-zinc-300/90">{section.quizQuestions.length} questions</span>
+                            </div>
+                            <h3 className="module-photo-title">{section.title}</h3>
+                            <div className="module-photo-sub">
+                              {isLocked ? (
+                                <span className="inline-flex items-center gap-1.5 text-zinc-400">
+                                  <Lock size={12} /> Unlock with full access
                                 </span>
-                                <span className="hmi-readout shrink-0 text-[12px] text-[#8a9099]">
-                                  {meta.locked ? (
-                                    <Lock size={13} className="text-[#5c636e]" />
-                                  ) : meta.complete ? (
-                                    <span className="text-[#3ecf8e]">{meta.score}</span>
-                                  ) : meta.started ? (
-                                    <span className="text-[#d4a017]">{meta.score}</span>
-                                  ) : (
-                                    <ChevronRight size={14} className="text-[#5c636e]" />
-                                  )}
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-zinc-200 transition-colors group-hover:text-emerald-300">
+                                  Open module <ChevronRight size={14} />
                                 </span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
                       );
                     })}
-                    
+                  </div>
+
                     {!hasPurchased && (
-                      <div ref={unlockRef} id="unlock-access" className="mt-4 space-y-3">
-                        <div className="flex items-center justify-between gap-3 border-y border-[#1d2026] py-3">
-                          <div className="min-w-0">
-                            <p className="label-caps">Modules 4–15</p>
-                            <p className="mt-1 text-[12px] text-[#8a9099]">One payment. Lifetime access.</p>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 paywall-card"
+                      >
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                          <Sparkles size={120} />
+                        </div>
+                        <div className="relative z-10 space-y-6">
+                          <div className="space-y-2">
+                            <h3 className="text-xl title-display">Go full access</h3>
+                            <p className="text-zinc-400 text-sm leading-relaxed">Unlock every module, every simulator, and the full certification path—one payment, lifetime updates.</p>
                           </div>
-                          <div className="flex shrink-0 items-center gap-3">
-                            <p className="hmi-readout text-[18px] text-[#e6e8eb]">$49</p>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <p className="label-caps text-emerald-400/80">One-time payment</p>
+                              <p className="text-3xl title-display">$49.00</p>
+                            </div>
                             <button
-                              type="button"
                               onClick={handlePurchase}
                               disabled={isPurchasing || !canPurchase}
-                              className="hmi-key is-on disabled:cursor-not-allowed"
-                              style={{ borderColor: '#3ecf8e99', color: '#3ecf8e' }}
+                              className="btn-primary disabled:cursor-not-allowed"
                             >
-                              {isPurchasing ? <RefreshCcw size={14} className="animate-spin" /> : <CreditCard size={14} />}
-                              {isPurchasing ? '…' : isNative() ? 'Play' : 'Unlock'}
+                              {isPurchasing ? (
+                                <RefreshCcw className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <CreditCard size={20} />
+                              )}
+                              {isPurchasing ? 'Processing...' : (!canPurchase ? 'Not Configured' : (isNative() ? 'Unlock with Play' : 'Unlock Now'))}
                             </button>
                           </div>
                         </div>
-                        {showDiagnostics && !isStripeConfigured && (
-                              <div className="mt-4 bg-black/40 border border-amber-500/20 rounded-2xl overflow-hidden">
-                                <div className="bg-amber-500/10 px-4 py-2 border-b border-amber-500/10 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <AlertCircle className="w-3 h-3 text-amber-500" />
-                                    <span className="text-[10px] font-bold text-amber-200 uppercase tracking-widest">Configuration Status</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${apiStatus === 'connected' ? 'bg-emerald-500/100 animate-pulse' : 'bg-red-500'}`} />
-                                    <span className="text-[9px] font-mono text-zinc-500 uppercase">{apiStatus}</span>
-                                  </div>
-                                </div>
-                                <div className="p-4 space-y-4">
-                                  <p className="text-[11px] text-zinc-400 leading-relaxed">
-                                    Stripe keys or Backend URL not configured correctly in AI Studio Secrets. 
-                                    {isNative() && !import.meta.env.VITE_APP_URL && (
-                                      <span className="block mt-1 text-red-400 font-bold">
-                                        CRITICAL: VITE_APP_URL is missing! Native apps must have a valid backend URL baked into the build.
-                                      </span>
-                                    )}
-                                    <span className="block mt-1">
-                                      Please add <b>VITE_STRIPE_PUBLISHABLE_KEY</b>, <b>STRIPE_SECRET_KEY</b>, and <b>VITE_APP_URL</b> to the <b>Secrets</b> panel in AI Studio Settings, then Save and wait for the app to rebuild.
-                                    </span>
-                                  </p>
-                                  
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-black/20 p-2 rounded-lg border border-zinc-800/50">
-                                      <div className="text-[8px] text-zinc-500 uppercase mb-1 italic font-serif tracking-tight">Backend Link</div>
-                                      <div className={`text-[10px] font-mono ${apiStatus === 'connected' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {apiStatus === 'connected' ? 'ACTIVE' : 'OFFLINE'}
-                                      </div>
-                                    </div>
-                                    <div className="bg-black/20 p-2 rounded-lg border border-zinc-800/50">
-                                      <div className="text-[8px] text-zinc-500 uppercase mb-1 italic font-serif tracking-tight">Stripe Key</div>
-                                      <div className={`text-[10px] font-mono ${stripePubKey ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {stripePubKey ? (stripePubKey.startsWith('pk_') ? 'VALID' : 'INVALID') : 'MISSING'}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="px-2 py-1.5 bg-black/30 rounded-lg border border-zinc-800/30 overflow-hidden">
-                                    <div className="text-[7px] text-zinc-500 uppercase mb-1 font-bold">Target API URL:</div>
-                                    <div className="text-[9px] font-mono text-zinc-400 truncate">
-                                      {getApiUrl('/config')}
-                                    </div>
-                                    {import.meta.env.VITE_APP_URL && (
-                                       <div className="text-[7px] text-emerald-500/50 mt-1 uppercase font-bold">Base: {import.meta.env.VITE_APP_URL}</div>
-                                    )}
-                                  </div>
-
-                                  {/* Diagnostics Section */}
-                                  <div className="mt-2 p-3 bg-black/40 rounded-xl border border-zinc-700/30">
-                                    <div className="text-[7px] text-zinc-500 uppercase mb-2 tracking-widest font-bold flex justify-between">
-                                      <span>Server Diagnostics</span>
-                                      {import.meta.env.VITE_APP_URL?.includes('-pre-') && (
-                                        <span className="text-amber-500">PROD/SHARED MODE</span>
-                                      )}
-                                    </div>
-                                    
-                                    {import.meta.env.VITE_APP_URL?.includes('-pre-') && (
-                                      <div className="mb-2 p-1.5 bg-amber-900/20 rounded border border-amber-500/30 text-[8px] text-amber-200 leading-tight">
-                                        Note: The "-pre-" URL only updates when you click "Share". If changes aren't appearing, freshen the deployment.
-                                      </div>
-                                    )}
-                                    <div className="flex gap-2 mb-2">
-                                      <button 
-                                        onClick={async () => {
-                                          try {
-                                            const url = getApiUrl('/ping');
-                                            console.log("Diag: Pinging", url);
-                                            const res = await httpClient(url);
-                                            const data = await res.json();
-                                            console.log("Diag: Success!", data);
-                                            alert(`SUCCESS!\nServer Time: ${data.time}\nStatus: ${res.status}`);
-                                          } catch (err: any) {
-                                            console.error("Diag: Failed", err);
-                                            alert(`FAILED: ${err.message}`);
-                                          }
-                                        }}
-                                        className="text-[9px] px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
-                                      >
-                                        Ping API
-                                      </button>
-                                      <button 
-                                        onClick={() => {
-                                          const report = {
-                                            native: isNative(),
-                                            baseUrl: import.meta.env.VITE_APP_URL,
-                                            platform: Capacitor.getPlatform(),
-                                            configUrl: getApiUrl('/config')
-                                          };
-                                          console.table(report);
-                                          alert(JSON.stringify(report, null, 2));
-                                        }}
-                                        className="text-[9px] px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
-                                      >
-                                        Env Debug
-                                      </button>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[9px] text-zinc-400">PUB_KEY on Server</span>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${stripePubKey ? 'bg-emerald-500/100' : 'bg-red-500'}`} />
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[9px] text-zinc-400">SEC_KEY on Server</span>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${serverConfig?.hasSecKey ? 'bg-emerald-500/100' : 'bg-red-500'}`} />
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[9px] text-zinc-400">APP_URL on Server</span>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${serverConfig?.hasAppUrl ? 'bg-emerald-500/100' : 'bg-red-500'}`} />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 pt-1">
-                                    <button 
-                                      onClick={() => window.open(window.location.href, '_blank')}
-                                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-xl text-[10px] font-bold transition-all border border-zinc-700/50"
-                                    >
-                                      Open in New Tab
-                                    </button>
-                                    <button 
-                                      onClick={() => window.location.reload()}
-                                      className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 py-2 rounded-xl text-[10px] font-bold transition-all border border-amber-500/20"
-                                    >
-                                      Force Refresh
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                      </motion.div>
+                    )}
+                    {filteredCurriculum.length === 0 && (
+                      <div className="text-center py-12 space-y-3">
+                        <div className="w-14 h-14 bg-elevated rounded-xl flex items-center justify-center text-zinc-600 mx-auto">
+                          <Search size={32} />
+                        </div>
+                        <p className="text-zinc-500 text-sm">No modules found matching "{searchTerm}"</p>
                       </div>
                     )}
-                    {visibleCurriculum.length === 0 && (
-                      <div className="py-8">
-                        <p className="text-[12px] text-[#5c636e]">No modules in this filter.</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </motion.div>
