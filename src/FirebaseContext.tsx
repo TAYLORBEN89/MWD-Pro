@@ -272,7 +272,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await addDoc(collection(db, 'results'), resultData);
 
       // Award badge if score >= 80 and not already earned
-      if (score >= 80) {
+      if (safeScore >= 80) {
         const userRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userRef);
         

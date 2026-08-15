@@ -68,9 +68,8 @@ if (!appUrl) {
 if (!admin.apps.length && firebaseConfig.projectId) {
   try {
     // Check for service account in env var first (Vercel friendly)
-    const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_PLAY_SERVICE_ACCOUNT;
-    if (saRaw) {
-      const serviceAccount = JSON.parse(saRaw);
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: firebaseConfig.projectId
