@@ -53,8 +53,6 @@ import {
   Lock,
   CreditCard,
   Sparkles,
-  Activity,
-  Target,
   FlaskConical
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -510,62 +508,43 @@ export default function App() {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen w-full max-w-md mx-auto bg-canvas flex flex-col justify-center p-6 relative overflow-y-auto">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-20%] right-[-30%] w-[80%] h-[50%] bg-[radial-gradient(circle_at_center,#10b981_0%,transparent_65%)] opacity-[0.12] blur-3xl" />
-          <div className="absolute bottom-[-10%] left-[-20%] w-[70%] h-[40%] bg-[radial-gradient(circle_at_center,#3f3f46_0%,transparent_70%)] opacity-40 blur-2xl" />
+      <div className="min-h-screen w-full max-w-md mx-auto bg-canvas flex flex-col items-center justify-center p-8 text-center relative overflow-y-auto">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle_at_50%_50%,#1a1a1a_0%,transparent_70%)] opacity-50" />
+          <div className="absolute top-[20%] right-[-20%] w-[80%] h-[80%] bg-[radial-gradient(circle_at_50%_50%,#10b981_0%,transparent_70%)] opacity-10 blur-[100px]" />
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 space-y-8"
+          className="relative z-10 space-y-12"
         >
-          <div className="space-y-4 text-center">
-            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow">
-              <GraduationCap size={32} />
+          <div className="space-y-6">
+            <div className="w-20 h-20 bg-emerald-500/100 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow">
+              <GraduationCap size={48} />
             </div>
             <div className="space-y-2">
-              <p className="label-caps text-emerald-400/90">Field engineer training</p>
-              <h1 className="text-3xl title-display tracking-tight">Train like you&apos;re on the rig</h1>
-              <p className="text-zinc-400 text-[15px] leading-relaxed max-w-sm mx-auto">
-                Practical MWD skills, interactive simulators, and certification—built for directional and MWD hands.
-              </p>
+              <h1 className="text-4xl title-display tracking-tighter">MWD PRO</h1>
+              <p className="label-caps">Petro Academy Training</p>
             </div>
           </div>
 
-          <div className="grid gap-3">
-            {[
-              { icon: Target, title: '15 structured modules', body: 'From surveys to geosteering and failure diagnosis' },
-              { icon: Activity, title: 'Live instrument sims', body: 'Toolface, mud pulse, vibration, and more' },
-              { icon: Trophy, title: 'Prove mastery', body: 'Quizzes + professional certificate path' },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-              <div key={item.title} className="surface-card p-4 flex gap-3 items-start text-left">
-                <div className="instrument-icon shrink-0">
-                  <Icon size={16} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">{item.title}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{item.body}</p>
-                </div>
-              </div>
-              );
-            })}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              onClick={() => setHasStarted(true)}
-              className="w-full btn-primary py-4 text-base"
-            >
-              Start free modules
-            </button>
-            <p className="text-center text-xs text-zinc-500">
-              3 modules free · Full access <span className="text-zinc-300 font-medium">$49</span> lifetime
+          <div className="space-y-4">
+            <p className="text-zinc-400 text-lg leading-relaxed">
+              Master the art of <span className="text-white font-semibold">Measurement While Drilling</span> with our professional certification program.
             </p>
           </div>
+
+          <button
+            onClick={() => setHasStarted(true)}
+            className="w-full btn-primary py-4 text-base"
+          >
+            Get Started
+          </button>
+
+          <p className="label-caps text-zinc-600">
+            Version 4.2.15 • Professional Edition
+          </p>
         </motion.div>
       </div>
     );
