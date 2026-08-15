@@ -1,7 +1,7 @@
 import { getApiUrl } from './api';
 import { httpClient } from './httpClient';
 
-async function postEmail(path: string, body: Record<string, unknown>): Promise<void> {
+async function postEmail(path: string, body: Record<string, unknown>): Promise<boolean> {
   try {
     const res = await httpClient(getApiUrl(path), {
       method: 'POST',
@@ -11,9 +11,12 @@ async function postEmail(path: string, body: Record<string, unknown>): Promise<v
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.warn(`Email ${path} failed:`, res.status, text.slice(0, 120));
+      return false;
     }
+    return true;
   } catch (e) {
     console.warn(`Email ${path} error:`, e);
+    return false;
   }
 }
 
@@ -36,9 +39,9 @@ export async function requestCertificateEmail(params: {
   uid: string;
   email: string;
   displayName?: string | null;
-}): Promise<void> {
-  if (!params.email) return;
-  await postEmail('/api/email/certificate', {
+}): Promise<boolean> {
+  if (!params.email) return false;
+  return postEmail('/api/email/certificate', {
     uid: params.uid,
     email: params.email,
     displayName: params.displayName || '',

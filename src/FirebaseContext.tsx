@@ -55,7 +55,7 @@ const FULL_ACCESS_EMAILS = new Set([
   'bt4ylor1776@gmail.com',
 ]);
 
-function emailHasFullAccess(email?: string | null) {
+export function emailHasFullAccess(email?: string | null) {
   return !!email && FULL_ACCESS_EMAILS.has(email.trim().toLowerCase());
 }
 
