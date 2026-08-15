@@ -1232,8 +1232,9 @@ export default function App() {
               )}
 
               {!activeSimId && (
-              <div className="grid gap-4">
+              <div className="grid gap-3">
                 {simLabCatalog.map((sim) => {
+                  const Icon = sim.icon;
                   const locked = !sim.isFree && !hasPurchased;
                   return (
                     <button
@@ -1247,39 +1248,32 @@ export default function App() {
                         }
                         setActiveSimId(sim.id);
                       }}
-                      className={`group sim-photo-card ${locked ? 'is-locked' : ''}`}
+                      className={`module-card sim-lab-card text-left ${locked ? 'is-locked' : ''}`}
                     >
                       <img
                         src={getSimLabCover(sim.id)}
                         alt=""
-                        className="module-photo-bg"
+                        className="sim-lab-card-bg"
                         loading="lazy"
                         decoding="async"
                       />
-                      <div className="module-photo-scrim" aria-hidden />
-                      {locked && (
-                        <div className="module-photo-lock" aria-label="Locked">
-                          <Lock size={16} />
+                      <div className="sim-lab-card-shade" aria-hidden />
+                      <div className="relative z-10 flex items-center gap-4">
+                        <div className="instrument-icon">
+                          {locked ? <Lock size={16} /> : <Icon size={16} />}
                         </div>
-                      )}
-                      {sim.isFree ? (
-                        <span className="module-photo-badge">Free</span>
-                      ) : (
-                        <span className="module-photo-badge is-pro">Pro</span>
-                      )}
-                      <div className="module-photo-body">
-                        <h3 className="module-photo-title">{sim.title}</h3>
-                        <div className="module-photo-sub">
-                          {locked ? (
-                            <span className="inline-flex items-center gap-1.5 text-zinc-400">
-                              <Lock size={12} /> Unlock with full access
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-zinc-200 transition-colors group-hover:text-emerald-300">
-                              {sim.subtitle} <ChevronRight size={14} />
-                            </span>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="sim-lab-title font-semibold text-[15px] truncate">{sim.title}</h3>
+                            {sim.isFree ? (
+                              <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium shrink-0">Free</span>
+                            ) : (
+                              <span className="text-[10px] bg-elevated text-zinc-300 px-2 py-0.5 rounded-full font-medium shrink-0">Pro</span>
+                            )}
+                          </div>
+                          <p className="sim-lab-sub text-xs mt-0.5">{sim.subtitle}</p>
                         </div>
+                        <ChevronRight className="sim-lab-chevron shrink-0" size={18} />
                       </div>
                     </button>
                   );
