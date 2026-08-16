@@ -621,7 +621,7 @@ export default function App() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="landing-inner space-y-12"
+          className="landing-inner"
         >
           <div className="space-y-6">
             <div className="w-20 h-20 bg-emerald-500/100 rounded-2xl flex items-center justify-center text-zinc-950 mx-auto shadow-glow sm:w-24 sm:h-24">

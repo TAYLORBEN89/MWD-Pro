@@ -769,9 +769,21 @@
   }
 
   .landing-screen {
-    @apply min-h-screen w-full flex flex-col items-center justify-center text-center relative overflow-y-auto;
+    @apply w-full flex flex-col items-center text-center relative overflow-y-auto;
     background: var(--canvas);
-    padding: clamp(1.5rem, 4vw, 3.5rem);
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: center;
+    padding: clamp(1.25rem, 4vw, 3.5rem);
+    padding-top: calc(clamp(1.25rem, 4vw, 3.5rem) + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(clamp(1.25rem, 4vw, 3.5rem) + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (max-width: 639px) {
+    .landing-screen {
+      justify-content: flex-start;
+      padding-top: calc(clamp(2.75rem, 11svh, 5.5rem) + env(safe-area-inset-top, 0px));
+    }
   }
 
   .landing-inner {
@@ -779,6 +791,9 @@
     z-index: 10;
     width: 100%;
     max-width: min(42rem, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.35rem, 3.6vh, 3rem);
   }
 
   .landing-title {
