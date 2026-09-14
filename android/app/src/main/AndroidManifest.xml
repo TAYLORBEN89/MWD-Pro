@@ -31,12 +31,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Android App Links: http+https required, autoVerify required.
+                 See https://developer.android.com/training/app-links/add-applinks -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="compessential.com" />
-                <data android:scheme="https" android:host="www.compessential.com" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="compessential.com" />
+                <data android:host="www.compessential.com" />
             </intent-filter>
 
         </activity>

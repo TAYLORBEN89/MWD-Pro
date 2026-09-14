@@ -95,7 +95,7 @@ const steps: Step[] = [
           Master the art of <span className="font-semibold text-white">Measurement While Drilling</span> with our professional certification program.
         </p>
         <div className="rounded-xl bg-emerald-500 py-3 text-sm font-extrabold text-zinc-950">Get Started</div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Version 1.11 · Professional Edition</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Version 1.12 · Professional Edition</p>
       </div>
     ),
   },

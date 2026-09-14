@@ -214,7 +214,8 @@ app.get("/.well-known/assetlinks.json", (req, res) => {
         "namespace": "android_app",
         "package_name": "com.mwdpro.app",
         "sha256_cert_fingerprints": [
-          "D7:07:5F:56:7F:8F:AC:91:42:A4:39:68:7C:A1:58:A1:10:6A:B5:EF:EF:62:8C:B4:43:48:CE:66:0E:AD:49:01"
+          "D7:07:5F:56:7F:8F:AC:91:42:A4:39:68:7C:A1:58:A1:10:6A:B5:EF:EF:62:8C:B4:43:48:CE:66:0E:AD:49:01",
+          "25:F3:FF:BC:E1:0A:3A:0E:8D:56:61:F4:B7:FC:34:40:F9:AA:EF:74:69:7F:31:82:CC:41:C3:85:E9:73:B8:58"
         ]
       }
     }
