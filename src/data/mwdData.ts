@@ -482,7 +482,11 @@ ROP is the speed at which the wellbore is being deepened, usually measured in fe
 **MWD impact:** High ROP can "bury" the tool in a thick cloud of cuttings, causing:
 *   **Telemetry attenuation:** The cuttings absorb the energy of the mud pulses, making the signal weak or unreadable at surface.
 *   **Gamma lag:** The Gamma sensor is located several feet behind the bit. At high ROP, the driller may have already drilled 30 feet past a formation change before the MWD tech sees it on the log.
-*   **Temperature rise:** Rapid drilling generates more friction and ### 2.6 Mud Flow & Hydraulics
+*   **Temperature rise:** Rapid drilling generates more friction and heat at the bit and in the BHA, so the tool can run hotter than the mud can carry away.
+
+---
+
+### 2.6 Mud Flow & Hydraulics
 Mud flow is the lifeblood of the MWD system, providing power, cooling, and the communication medium.
 
 **Functions:**
@@ -998,7 +1002,11 @@ Magnetometers measure the Earth's magnetic field vectors. They are the primary s
 *   Casing
 *   Formation magnetism
 *   Tool rotation
-*   Temperatu### 3.7 Gamma Ray Detector
+*   **Temperature:** Heat shifts magnetometer bias and scale factor, so azimuth can drift if the tool is not compensated.
+
+---
+
+### 3.7 Gamma Ray Detector
 Most MWD tools include a natural gamma ray detector to provide basic formation evaluation while drilling.
 
 **It measures:**
@@ -1504,7 +1512,10 @@ It uses:
 *   Inclination
 *   Azimuth
 *   Measured Depth (MD)
-*### 4.8 Dogleg Severity (DLS)
+
+---
+
+### 4.8 Dogleg Severity (DLS)
 DLS is a measure of the "curvature" of the wellbore, typically expressed in degrees per 100 feet (or 30 meters). It is the most critical metric for wellbore quality.
 
 **High DLS can cause:**
@@ -3207,7 +3218,9 @@ A professional MWD technician follows a strict set of procedures to ensure data 
   {
     id: 'section-8',
     title: 'Rig Operations, Safety, & MWD Workflow',
-    content: `This section teaches the practical, operational side of being an MWD hand on location. It covers rig procedures, safety expectations, job workflow, communication, and the daily responsibilities that keep the operation running smoothly. This is the “real world” section — the part th### 8.1 Rig Safety Fundamentals
+    content: `This section teaches the practical, operational side of being an MWD hand on location. It covers rig procedures, safety expectations, job workflow, communication, and the daily responsibilities that keep the operation running smoothly. This is the “real world” section — the part that matters once you are on location.
+
+### 8.1 Rig Safety Fundamentals
 The drilling rig is one of the most dangerous work environments on Earth. MWD personnel must be safety leaders, not just followers.
 
 **MWD personnel must follow all rig safety rules, including:**
@@ -3681,7 +3694,9 @@ This section is the bridge between "knowing" MWD and "doing" MWD.
   {
     id: 'section-9',
     title: 'MWD Reliability, Failure Modes, & Post Run Analysis',
-    content: `This section teaches the trainee how to protect the tool, recognize early warning signs, diagnose failures, and deliver high quality post run data. Reliability is the difference between an MWD hand who “gets by” and one who becomes the dri### 9.1 What Reliability Means in MWD
+    content: `This section teaches the trainee how to protect the tool, recognize early warning signs, diagnose failures, and deliver high quality post run data. Reliability is the difference between an MWD hand who “gets by” and one who becomes the driller’s first call.
+
+### 9.1 What Reliability Means in MWD
 In the oilfield, "Reliability" is the most valuable currency an MWD company has. It is the measure of how much a client can trust that the tool will work until the job is done.
 
 **MWD reliability is measured by:**
@@ -3767,7 +3782,9 @@ The job isn't over when the tool reaches the surface. We must learn from every r
     id: 'section-10',
     title: 'Directional Drilling Fundamentals for MWD',
     content: `This section teaches the MWD operator the essential directional drilling concepts needed to support the DD, understand the well plan, and anticipate operational needs.
-The goal is not to turn the trainee into a directional driller — it’s to make them a high v### 10.1 What Directional Drillers Do
+The goal is not to turn the trainee into a directional driller — it’s to make them a high-value partner to the directional driller.
+
+### 10.1 What Directional Drillers Do
 The Directional Driller (DD) is the "pilot" of the well. While the MWD provides the "instruments," the DD makes the steering decisions.
 
 **Directional drillers are responsible for:**
