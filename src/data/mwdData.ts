@@ -576,8 +576,7 @@ Understanding drilling mechanics allows you to:
 *   **Protect the tool:** Advocating for "vibration-friendly" parameters extends the life of your equipment.
 *   **Improve data quality:** Ensuring the hole is clean and stable leads to the most accurate logs and surveys.
 
-**This section builds the foundation for becoming a diagnostic-level MWD technician.**
-n builds the foundation for becoming a diagnostic level MWD technician.**`,
+**This section builds the foundation for becoming a diagnostic-level MWD technician.**`,
     quizQuestions: [
       {
         id: 's2q1',
@@ -2053,7 +2052,7 @@ Magnetic interference is the "invisible enemy" of the MWD technician. Mastering 
 *   **Lost Production:** If the well is not placed perfectly in the "sweet spot" of the reservoir, its production will be significantly lower.
 *   **Safety Risks:** Inaccurate surveys make it impossible to accurately plan a "relief well" in the event of an emergency.
 
-**A great MWD tech knows how to detect interference early and take corrective action.`,
+**A great MWD tech knows how to detect interference early and take corrective action.**`,
     quizQuestions: [
       {
         id: 's5q1',
@@ -2509,7 +2508,7 @@ Gamma ray is the "eyes" of the MWD tool. Without it, we are drilling in the dark
 *   **Reservoir Navigation:** Avoiding "dead" zones and maximizing the total production of the well.
 *   **Safety:** Identifying high-pressure shale zones before they cause a drilling problem.
 
-**Mastering Gamma Ray interpretation is what separates a "button pusher" from a professional MWD Technician.`,
+**Mastering Gamma Ray interpretation is what separates a "button pusher" from a professional MWD Technician.**`,
     quizQuestions: [
       {
         id: 's6q1',
@@ -3774,7 +3773,301 @@ The job isn't over when the tool reaches the surface. We must learn from every r
         question: 'Why is comparing real-time data to memory data important post-run?',
         options: ['To see if the tool was turned off', 'To verify data quality and ensure the final surveys are accurate', 'To check the rig’s fuel levels', 'To calculate the cost of the mud'],
         correctAnswerIndex: 1,
-        explanation: 'Memory data is higher resolution and serves as the final record to verify real-time telemetry.'
+        explanation: 'Memory is the higher-resolution record of what the tool actually measured. Pulses are only what the surface decoded, so the comparison shows which surveys and logs were real.'
+      },
+      {
+        id: 's9q4',
+        question: 'What does tool uptime measure?',
+        options: ['Hours from surface to TD only', 'The share of drilling time the tool is sending accurate, decodable data', 'How often the shop replaces the tool', 'Surface pump uptime'],
+        correctAnswerIndex: 1,
+        explanation: 'Uptime is time the rig can actually use the data. A five-minute blackout while steering still counts, even if the tool works for the rest of the run.'
+      },
+      {
+        id: 's9q5',
+        question: 'What is MTBF?',
+        options: ['Maximum temperature before failure', 'Mud temperature at the bit face', 'Mean time between failures — average hours a tool runs before it breaks', 'Memory time before the flash fills'],
+        correctAnswerIndex: 2,
+        explanation: 'MTBF is run length: how many hours the tool typically lasts before it breaks. It is not a temperature limit or a memory-capacity number.'
+      },
+      {
+        id: 's9q6',
+        question: 'What run length do high-tier tools aim for?',
+        options: ['40 hours', '100 hours', '200 hours', '400+ hours of continuous downhole operation'],
+        correctAnswerIndex: 3,
+        explanation: 'High-tier tools are expected to stay down for 400 hours or more without a failure. Shorter figures in the choices are below that target.'
+      },
+      {
+        id: 's9q7',
+        question: 'What is survival rate?',
+        options: ['The chance the pulser decodes every survey', 'The chance the tool reaches TD without a trip for repair', 'The chance gamma matches the offset log', 'Battery percent remaining at TD'],
+        correctAnswerIndex: 1,
+        explanation: 'Survival rate is whether the tool finishes the hole. A tool that decodes well and then has to be tripped for repair still failed to survive the run.'
+      },
+      {
+        id: 's9q8',
+        question: 'A tool sends clean pulses but the surveys are wrong. How does the chapter treat that?',
+        options: ['A minor telemetry issue', 'Acceptable if the driller is happy', 'A 100% reliability failure, because the data is not accurate', 'Fine if memory is downloaded later'],
+        correctAnswerIndex: 2,
+        explanation: 'Uptime only counts if the surveys are true. A tool that pulses perfectly and sends a bad azimuth has still failed the run.'
+      },
+      {
+        id: 's9q9',
+        question: 'What is environmental tolerance in this chapter?',
+        options: ['How the tool handles a lost-circulation pill', 'How the tool performs near its rated limits', 'How well the surface decoder handles noise', 'How long the housing resists wear'],
+        correctAnswerIndex: 1,
+        explanation: 'Tolerance is performance near the rating, such as 145°C on a 150°C tool. Housing wear and surface noise are different problems.'
+      },
+      {
+        id: 's9q10',
+        question: 'Which event is called a major reliability failure even if it is short?',
+        options: ['A slow ROP in shale', 'A survey taken every stand instead of every joint', 'A 5-minute data blackout during critical steering', 'Switching from MTF to GTF'],
+        correctAnswerIndex: 2,
+        explanation: 'A short outage still fails uptime if it hits while the well is being steered. A planned survey interval or a toolface reference change is not an outage.'
+      },
+      {
+        id: 's9q11',
+        question: 'Reliability, in this chapter, is mainly a measure of what?',
+        options: ['How fast the bit drills', 'How cheap the tool is to build', 'How many gamma API counts the detector returns', 'How much the client can trust the tool to last until the job is done'],
+        correctAnswerIndex: 3,
+        explanation: 'Reliability is trust that the tool lasts through the job. ROP, build cost, and a gamma count do not measure that.'
+      },
+      {
+        id: 's9q12',
+        question: 'Which pair is a reliability metric in this chapter?',
+        options: ['Mud weight and funnel viscosity', 'Tool uptime and data integrity', 'Inclination and azimuth', 'WOB and RPM'],
+        correctAnswerIndex: 1,
+        explanation: 'Uptime and data integrity are how this chapter scores a tool. Mud properties and drilling parameters describe the well, not the tool’s reliability.'
+      },
+      {
+        id: 's9q13',
+        question: 'A tool that talks the whole run but the surveys fail QC is best described as:',
+        options: ['High uptime, so the run was a success', 'An environmental success', 'A data-integrity failure', 'A normal memory-only run'],
+        correctAnswerIndex: 2,
+        explanation: 'Pulses do not save a run if the surveys fail QC. That is bad data, not a successful uptime number and not a normal memory download.'
+      },
+      {
+        id: 's9q14',
+        question: 'Pulses grow too weak to decode after a long run in sandy mud. What mechanical failure fits?',
+        options: ['CPU reset', 'Pulser wear from abrasive mud washing out the poppet and orifice', 'Memory corruption', 'Over-temperature'],
+        correctAnswerIndex: 1,
+        explanation: 'Sandy mud cuts the poppet and orifice until the pressure wave is too small to decode. That is wear, not a hot tool, a reset, or scrambled memory.'
+      },
+      {
+        id: 's9q15',
+        question: 'The pulser locks open after a lost-circulation pill. What fits?',
+        options: ['Turbine rotor chip', 'Battery depletion', 'Poppet sticking from LCM or metal shavings', 'Seal leak'],
+        correctAnswerIndex: 2,
+        explanation: 'LCM and metal shavings jam the poppet so it sticks open or closed. A dead battery goes dark. A seal leak floods the electronics. Neither locks the poppet.'
+      },
+      {
+        id: 's9q16',
+        question: 'What can burn out the motor or solenoid that moves the pulser?',
+        options: ['A dull bit', 'Low gamma counts', 'A long survey interval', 'Mechanical resistance or an internal short'],
+        correctAnswerIndex: 3,
+        explanation: 'The solenoid burns out when the pulser binds or the coil shorts. Bit condition, gamma, and the survey interval do not burn that coil.'
+      },
+      {
+        id: 's9q17',
+        question: 'A turbine tool loses power and the bearings have seized. What caused the seizure in this chapter?',
+        options: ['A bad gamma calibration', 'Mud solids or high-speed vibration', 'An IFR correction', 'A short survey interval'],
+        correctAnswerIndex: 1,
+        explanation: 'Solids in the mud or high-speed vibration seize turbine bearings and cut power. Calibration and survey timing do not seize a bearing.'
+      },
+      {
+        id: 's9q18',
+        question: 'Rocks in the mud chip the turbine blades. What is the result?',
+        options: ['Azimuth becomes magnetic north', 'Gamma API doubles', 'Less power, and imbalance or vibration', 'The housing rating rises to 175°C'],
+        correctAnswerIndex: 2,
+        explanation: 'A chipped rotor makes less power and runs out of balance. It does not change azimuth reference, gamma scale, or the tool’s temperature rating.'
+      },
+      {
+        id: 's9q19',
+        question: 'A crack or washout in the steel housing is which failure?',
+        options: ['Electrical', 'Structural fatigue', 'A decoding setting', 'A memory-only issue'],
+        correctAnswerIndex: 1,
+        explanation: 'A cracked or washed-out housing is the steel failing under drilling stress. It is not a decoder setting or a memory-file problem.'
+      },
+      {
+        id: 's9q20',
+        question: 'Which item is mechanical, not electrical?',
+        options: ['Memory corruption', 'CPU reset', 'Poppet sticking', 'Power-board failure'],
+        correctAnswerIndex: 2,
+        explanation: 'A stuck poppet is a pulser part jammed by debris. Memory, the CPU, and the power board are electrical.'
+      },
+      {
+        id: 's9q21',
+        question: 'Which item is mechanical, not environmental?',
+        options: ['Thermal death at 150°C', 'A pressure-seal leaker', 'High G-force shock from a dropped string', 'Pulser erosion'],
+        correctAnswerIndex: 3,
+        explanation: 'Pulser erosion is abrasive wear. Heat, a flooded seal, and a shock from a dropped string are environmental.'
+      },
+      {
+        id: 's9q22',
+        question: 'What does the chapter call the most common preventable failure?',
+        options: ['Turbine rotor damage', 'Battery depletion', 'Housing washout', 'Gamma spiking'],
+        correctAnswerIndex: 1,
+        explanation: 'A long run or a bad power estimate runs the battery down and the tool goes dark. That one is preventable before the tool is picked up.'
+      },
+      {
+        id: 's9q23',
+        question: 'What can fry the power-management board?',
+        options: ['A thin shale streak', 'A 30-foot survey interval', 'A high-voltage spike from the turbine, or heat', 'Switching to GTF'],
+        correctAnswerIndex: 2,
+        explanation: 'A turbine voltage spike or heat destroys the power board. Formation, survey spacing, and toolface reference do not.'
+      },
+      {
+        id: 's9q24',
+        question: 'The tool reboots over and over and leaves gaps in the data. What fits?',
+        options: ['Poppet erosion', 'CPU or logic resets from vibration or power brown-outs', 'A dull bit', 'Normal memory compression'],
+        correctAnswerIndex: 1,
+        explanation: 'Vibration or a brown-out reboots the computer and leaves holes in the log. A worn poppet weakens the pulse. It does not reboot the tool.'
+      },
+      {
+        id: 's9q25',
+        question: 'Surveys fail QC after shock or heat, and the accelerometers or magnetometers look wrong. What fits?',
+        options: ['Turbine blade chip only', 'A reporting typo', 'Sensor drift or sensor failure', 'An empty battery log with a healthy tool'],
+        correctAnswerIndex: 2,
+        explanation: 'Shock or heat can make the survey sensors drift until QC fails. A chipped turbine cuts power. It does not by itself invent a bad azimuth.'
+      },
+      {
+        id: 's9q26',
+        question: 'Intermittent shorts, and the internal wires look loose or chafed. What fits?',
+        options: ['Wiring-harness damage', 'Sag correction', 'A gamma lag', 'Anti-collision'],
+        correctAnswerIndex: 0,
+        explanation: 'Vibration can chafe the harness against the housing and short it on and off. Sag, gamma lag, and anti-collision are not wire damage.'
+      },
+      {
+        id: 's9q27',
+        question: 'What can scramble data in the tool’s flash memory?',
+        options: ['A short slide sheet', 'Low ROP', 'A clean survey station', 'High-energy particles or electrical noise'],
+        correctAnswerIndex: 3,
+        explanation: 'Particles or electrical noise corrupt flash memory. Drilling slow, or taking a clean survey, does not scramble stored data.'
+      },
+      {
+        id: 's9q28',
+        question: 'Which failure is electrical?',
+        options: ['Bearing seizure', 'Housing crack', 'Memory corruption', 'O-ring leak'],
+        correctAnswerIndex: 2,
+        explanation: 'Scrambled flash is an electrical failure. A seized bearing, a cracked housing, and a leaking O-ring are not.'
+      },
+      {
+        id: 's9q29',
+        question: 'The tool goes dark because the run outlasted the power plan. What failed?',
+        options: ['The scintillation crystal', 'The battery', 'The well plan', 'The depth tracker'],
+        correctAnswerIndex: 1,
+        explanation: 'The battery was used up because the run was longer than the power plan. The gamma crystal and the depth system are still separate systems.'
+      },
+      {
+        id: 's9q30',
+        question: 'Most MWD electronics in this chapter are rated to:',
+        options: ['100°C', '125°C', '150°C (302°F)', '200°C'],
+        correctAnswerIndex: 2,
+        explanation: 'The rating given here is 150°C. Past that, even a short time can permanently damage the chips.'
+      },
+      {
+        id: 's9q31',
+        question: 'What does vibe-out do to the electronics?',
+        options: ['It magnetizes the collar', 'It shakes solder joints until components leave the board', 'It raises gamma API by a fixed 20 units', 'It only affects the surface decoder'],
+        correctAnswerIndex: 1,
+        explanation: 'High-frequency vibration works like a jackhammer on solder joints until parts leave the board. It is damage inside the tool, not a surface-decoder problem.'
+      },
+      {
+        id: 's9q32',
+        question: 'A dropped drillstring or a violent kick snaps internal supports. What is that?',
+        options: ['Pulser erosion', 'Battery depletion', 'High G-force shock', 'A normal survey station'],
+        correctAnswerIndex: 2,
+        explanation: 'A drop or a kick is a shock load. It can snap supports or shatter ceramic parts. Slow pulser wear does not do that in one event.'
+      },
+      {
+        id: 's9q33',
+        question: 'Mud floods the electronics and they short immediately. What failed?',
+        options: ['The gamma scale', 'A pressure seal (O-ring or metal-to-metal seal)', 'The survey interval setting', 'The IFR model'],
+        correctAnswerIndex: 1,
+        explanation: 'A failed O-ring or metal seal lets mud into the housing and the boards short at once. A jammed poppet stops the pulse. It does not flood the tool.'
+      },
+      {
+        id: 's9q34',
+        question: 'Which is an environmental failure?',
+        options: ['Poppet jammed with LCM', 'Over-temperature', 'Solenoid burnout', 'A mis-programmed survey interval'],
+        correctAnswerIndex: 1,
+        explanation: 'Heat past the rating is environmental. A jammed poppet and a burned solenoid are mechanical or electrical, and a bad program is not a failure mode of the well.'
+      },
+      {
+        id: 's9q35',
+        question: 'Which pair is environmental?',
+        options: ['Battery depletion and memory corruption', 'Pulser wear and bearing seizure', 'Thermal death and a seal leak', 'CPU reset and a chafed harness'],
+        correctAnswerIndex: 2,
+        explanation: 'Heat death and a flooded seal both come from the wellbore environment. Dead batteries, worn pulsers, and chafed wires are electrical or mechanical.'
+      },
+      {
+        id: 's9q36',
+        question: 'Pulses get smaller over the run. What should you suspect?',
+        options: ['The well is building angle as planned', 'Pulser wear or falling battery voltage', 'A correct IFR model', 'Memory data replacing real-time'],
+        correctAnswerIndex: 1,
+        explanation: 'A shrinking pulse means the pulser is wearing out or the battery is dropping. Building angle does not steadily shrink the pressure wave.'
+      },
+      {
+        id: 's9q37',
+        question: 'G-total or B-total wanders while the tool is stationary. What fits?',
+        options: ['Normal rotary noise', 'A good calibration', 'A sensor failing from heat', 'The bit drilling a clean sand'],
+        correctAnswerIndex: 2,
+        explanation: 'Totals should sit still when the tool is still. Wander at rest means a sensor is failing, often from heat, not that the bit is drilling.'
+      },
+      {
+        id: 's9q38',
+        question: 'The tool stops answering downlinks. What is likely glitching?',
+        options: ['The drill line only', 'The receiver or the CPU', 'The mud weight', 'The formation top'],
+        correctAnswerIndex: 1,
+        explanation: 'A downlink timeout points at the receiver or the tool computer. Mud weight and a formation top do not stop the tool from hearing a command.'
+      },
+      {
+        id: 's9q39',
+        question: 'Gamma counts jump in spikes that are not geologically real. What is failing?',
+        options: ['The poppet orifice only', 'The depth encoder', 'The detector PMT, from vibration', 'The well-plan spreadsheet'],
+        correctAnswerIndex: 2,
+        explanation: 'Unreal gamma spikes mean the photomultiplier is failing under vibration. A worn orifice weakens the mud pulse. It does not invent gamma counts.'
+      },
+      {
+        id: 's9q40',
+        question: 'Which sign means you should warn the driller before the tool dies?',
+        options: ['A steady, decodable pulse and stable surveys', 'Pulses shrinking, or sensors wandering at rest', 'A normal connection', 'Gamma that matches the offset log'],
+        correctAnswerIndex: 1,
+        explanation: 'Shrinking pulses and wandering totals are the tool failing in slow motion. Stable surveys and a matching gamma log are not a warning.'
+      },
+      {
+        id: 's9q41',
+        question: 'A pro MWD hand in this chapter does what when the warning signs show up?',
+        options: ['Waits for a total blackout, then trips', 'Deletes the bad surveys', 'Warns the team before the tool dies', 'Raises mud weight to hide the noise'],
+        correctAnswerIndex: 2,
+        explanation: 'The job is to call it early. Waiting for a blackout, deleting surveys, or covering the symptom with mud weight is the opposite of that.'
+      },
+      {
+        id: 's9q42',
+        question: 'What are you looking for when the tool comes out of the hole?',
+        options: ['A higher ROP on the next bit', 'Pitting, washouts, or loose connections', 'A new well plan', 'Surface pump pressure only'],
+        correctAnswerIndex: 1,
+        explanation: 'On the way out you look for pitting, washouts, and loose connections on the tool itself. The next bit’s ROP is not that inspection.'
+      },
+      {
+        id: 's9q43',
+        question: 'Why download and back up memory?',
+        options: ['Memory is only a copy of the pulses', 'It is higher resolution than what was pulsed and is used for the final logs', 'To erase the real-time record', 'To recalibrate the bit'],
+        correctAnswerIndex: 1,
+        explanation: 'Memory holds more detail than the pulses, and that download becomes the client log. It is not a copy you erase, and it does not calibrate the bit.'
+      },
+      {
+        id: 's9q44',
+        question: 'The tool failed. What is the RCA question in this chapter?',
+        options: ['Which gamma scale looks nicer', 'Whether the company man liked the slide', 'Manufacturing defect, or the rig exceeded the tool’s limits', 'Whether to skip the next survey'],
+        correctAnswerIndex: 2,
+        explanation: 'RCA asks whether the tool was built wrong or the rig ran it past its limits. Looks of a log, or skipping a survey, do not answer that.'
+      },
+      {
+        id: 's9q45',
+        question: 'What does final data QC and reporting include?',
+        options: ['Only a verbal handover', 'Clean logs, final corrections such as sag or IFR, and a data package to the client', 'Deleting surveys the driller dislikes', 'Raising the temperature rating on the report'],
+        correctAnswerIndex: 1,
+        explanation: 'The closeout is clean logs, corrections such as sag or IFR, and a package the client can use. You do not delete surveys to please the driller or edit the tool rating.'
       }
     ]
   },
@@ -5404,7 +5697,7 @@ The difference between a "green" MWD hand and a "lead" hand is situational aware
         explanation: 'Shale often has high conductivity, which attenuates EM signals.'
       },
       {
-        id: 's12q20',
+        id: 's13q20',
         question: 'Gamma ray shows a sudden spike followed by frozen values. Surveys continue normally. What is the most likely cause?',
         options: ['Entering shale', 'Gamma detector failure', 'Magnetic interference', 'High vibration'],
         correctAnswerIndex: 1,
