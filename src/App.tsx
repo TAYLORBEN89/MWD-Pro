@@ -650,7 +650,7 @@ export default function App() {
           </button>
 
           <p className="label-caps text-zinc-600">
-            Version 1.12 • Professional Edition
+            Version 1.13 • Professional Edition
           </p>
         </motion.div>
       </div>

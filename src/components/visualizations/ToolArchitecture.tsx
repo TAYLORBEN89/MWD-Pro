@@ -506,7 +506,7 @@ export const ToolArchitecture: React.FC = () => {
       : selected.body;
 
   return (
-    <div className="space-y-4">
+    <div className="tool-arch space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="label-caps">String schematic</p>
@@ -655,7 +655,7 @@ export const ToolArchitecture: React.FC = () => {
                         />
                       </svg>
                       <motion.span
-                        className="absolute left-[46%] right-0 top-[28%]"
+                        className="absolute left-[58%] right-1 top-[26%]"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}

@@ -168,6 +168,13 @@
     grid-template-columns: 1fr;
   }
 
+  /* Tool string is drawn for a phone column. Stretching it across a desktop
+     rail pulls the leader-line animation apart. */
+  .tool-arch {
+    width: 100%;
+    max-width: 26rem;
+  }
+
   .hmi-lab,
   .hmi-lab-plot,
   .hmi-lab-controls {
